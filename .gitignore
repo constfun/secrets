@@ -1,3 +1,6 @@
+.DS_Store
+
+# Suggested by GitHub
 *.annot
 *.cmo
 *.cma
@@ -7,3 +10,7 @@
 *.cmx
 *.cmxs
 *.cmxa
+
+_build/
+*.native
+*.byte
