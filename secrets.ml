@@ -43,8 +43,8 @@ let filename ~should_exist =
     (fun filename -> match (Sys.is_file filename), should_exist with
     | `Yes, true | `No, false -> filename
     | `Yes, false ->
-        eprintf "'%s' file already exists.\n%!" filename;
-        exit 1
+      eprintf "'%s' file already exists.\n%!" filename;
+      exit 1
     | `No, true | `Unknown, _ ->
       eprintf "'%s' file not found.\n%!" filename;
       exit 1
