@@ -1,20 +1,6 @@
 open Core.Std
 open Re2
 
-(* Proper way. *)
-(*module Db : sig
-  type 'a t
-  val empty : 'a t
-  val add : 'a t -> 'a -> 'a t
-  val to_list : 'a t -> 'a list
-end = struct
-  type 'a t = 'a list
-  let empty = []
-  let add db entry = entry :: db
-  let to_list db = db
-end*)
-
-(* Ghetto way. *)
 type entry = { title : string; payload : (string * string) list; } with sexp
 type 'a db = 'a list with sexp
 
