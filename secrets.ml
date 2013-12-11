@@ -9,9 +9,10 @@ let list () =
 
 let save db target_filename =
   let encoded = Sexp.to_string (sexp_of_db sexp_of_entry db) in
-  let encrypted = Crypto.encrypt encoded in
+  let key = "01234567891011121314151617181920" in
+  let encrypted = Nacl.secretbox key encoded in
   Out_channel.with_file target_filename ~f:(fun ic ->
-    List.iter (Crypto.to_char_list encrypted) (Out_channel.output_char ic)
+    List.iter (Nacl.to_char_list encrypted) (Out_channel.output_char ic)
   )
 
 let import file target_filename =
