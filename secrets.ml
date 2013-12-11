@@ -9,7 +9,10 @@ let list () =
 
 let save db target_filename =
   let encoded = Sexp.to_string (sexp_of_db sexp_of_entry db) in
-  Out_channel.write_all target_filename ~data:encoded
+  let encrypted = Crypto.encrypt encoded in
+  Out_channel.with_file target_filename ~f:(fun ic ->
+    List.iter (Crypto.to_char_list encrypted) (Out_channel.output_char ic)
+  )
 
 let import file target_filename =
   let r = Regex.create_exn "(^[^[].*)[\\s](.*)$" in
