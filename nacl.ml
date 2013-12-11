@@ -13,6 +13,7 @@ type t = {
   c : char array;
 }
 
+let string_to_char_ptr = coerce string (ptr char)
 
 let secretbox key data =
   let n = Array.make char crypto_secretbox_NONCEBYTES ~initial:'\000' in
@@ -27,7 +28,7 @@ let secretbox key data =
   let c = Array.make char mlen in
   let cptr = Array.start c in
 
-  if (crypto_secretbox cptr m mlenLL key nptr) = 0 then { n; c }
+  if (crypto_secretbox cptr (string_to_char_ptr m) mlenLL (string_to_char_ptr key) nptr) = 0 then { n; c }
   else raise Crypto_failed
 
 
