@@ -69,13 +69,4 @@ module Secretbox = struct
     let nonce = Array.from_ptr sptr nlen in
     let padded_cyphertext = Array.from_ptr (sptr +@ nlen) clen in
     { nonce; padded_cyphertext }
-
-  let to_list boxed =
-    (Array.to_list boxed.nonce) @ (Array.to_list boxed.padded_cyphertext)
-
-  let of_list l =
-    let nl, cl = List.split_n l Libsodium.crypto_secretbox_NONCEBYTES in
-    { nonce=(Array.of_list char nl); padded_cyphertext=(Array.of_list char cl) }
 end
-
-
