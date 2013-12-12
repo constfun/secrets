@@ -6,8 +6,6 @@ open Ctypes
 
 exception Crypto_failed
 
-type t = char array
-
 module Secretbox = struct
   type t = {
     buf : char array;

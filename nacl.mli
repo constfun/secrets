@@ -1,7 +1,5 @@
 exception Crypto_failed
 
-type t
-
 module Secretbox : sig
   type t
   val box : string -> string -> t
