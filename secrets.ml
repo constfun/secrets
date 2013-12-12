@@ -4,34 +4,21 @@ open Re2
 type entry = { title : string; payload : (string * string) list; } with sexp
 type 'a db = 'a list with sexp
 
-let read filename =
-  let s = In_channel.read_all filename in
-  Nacl.Secretbox.of_list (String.to_list s)
-
-let write target_filename encrypted_data =
-  Out_channel.with_file target_filename ~f:(fun ic ->
-    List.iter (Nacl.Secretbox.to_list encrypted_data) (Out_channel.output_char ic)
-  )
-
-let encode db =
-  sexp_of_db sexp_of_entry db
-
-let encrypt data =
-  let key = "01234567891011121314151617181920" in
-  Nacl.Secretbox.box key data
-
-let decrypt encrypted =
-  let key = "01234567891011121314151617181920" in
-  Nacl.Secretbox.box_open key encrypted
-
-let decode encoded =
-  db_of_sexp entry_of_sexp encoded
+let key = "01234567891011121314151617181920"
 
 let load filename =
-  read filename |> decrypt |> Sexp.of_string |> decode
+  In_channel.read_all filename
+  |> Nacl.Secretbox.of_string
+  |> Nacl.Secretbox.box_open key
+  |> Sexp.of_string
+  |> db_of_sexp entry_of_sexp
 
-let save db target_filename =
-  encode db |> Sexp.to_string |> encrypt |> write target_filename
+let save db filename =
+  let data = sexp_of_db sexp_of_entry db
+  |> Sexp.to_string
+  |> Nacl.Secretbox.box key
+  |> Nacl.Secretbox.to_string in
+  Out_channel.write_all filename ~data
 
 let list filename =
   let db = load filename in

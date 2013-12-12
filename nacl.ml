@@ -59,6 +59,17 @@ module Secretbox = struct
       string_of_char_array padded_message ~start:Libsodium.crypto_secretbox_ZEROBYTES
     else raise Crypto_failed
 
+  let to_string boxed =
+    (string_of_char_array boxed.nonce) ^ (string_of_char_array boxed.padded_cyphertext)
+
+  let of_string s =
+    let sptr = char_ptr_of_string s in
+    let nlen = Libsodium.crypto_secretbox_NONCEBYTES in
+    let clen = (String.length s) - nlen in
+    let nonce = Array.from_ptr sptr nlen in
+    let padded_cyphertext = Array.from_ptr (sptr +@ nlen) clen in
+    { nonce; padded_cyphertext }
+
   let to_list boxed =
     (Array.to_list boxed.nonce) @ (Array.to_list boxed.padded_cyphertext)
 
