@@ -4,16 +4,38 @@ open Re2
 type entry = { title : string; payload : (string * string) list; } with sexp
 type 'a db = 'a list with sexp
 
-let list () =
-  print_string "Listing\n"
+let read filename =
+  let s = In_channel.read_all filename in
+  Nacl.Secretbox.of_list (String.to_list s)
+
+let write target_filename encrypted_data =
+  Out_channel.with_file target_filename ~f:(fun ic ->
+    List.iter (Nacl.Secretbox.to_list encrypted_data) (Out_channel.output_char ic)
+  )
+
+let encode db =
+  sexp_of_db sexp_of_entry db
+
+let encrypt data =
+  let key = "01234567891011121314151617181920" in
+  Nacl.Secretbox.box key data
+
+let decrypt encrypted =
+  let key = "01234567891011121314151617181920" in
+  Nacl.Secretbox.box_open key encrypted
+
+let decode encoded =
+  db_of_sexp entry_of_sexp encoded
+
+let load filename =
+  read filename |> decrypt |> Sexp.of_string |> decode
 
 let save db target_filename =
-  let encoded = Sexp.to_string (sexp_of_db sexp_of_entry db) in
-  let key = "01234567891011121314151617181920" in
-  let encrypted = Nacl.secretbox key encoded in
-  Out_channel.with_file target_filename ~f:(fun ic ->
-    List.iter (Nacl.to_char_list encrypted) (Out_channel.output_char ic)
-  )
+  encode db |> Sexp.to_string |> encrypt |> write target_filename
+
+let list filename =
+  let db = load filename in
+  List.iter db ~f:(fun e -> print_endline e.title)
 
 let import file target_filename =
   let r = Regex.create_exn "(^[^[].*)[\\s](.*)$" in
@@ -60,8 +82,11 @@ let import_command =
 
 let list_command =
   Command.basic ~summary:"List stored entries."
-    Command.Spec.(empty)
-    (fun () -> print_endline "list")
+    Command.Spec.(
+      empty
+      ++ secrets_file_flag ~should_exist:true
+    )
+    (fun filename () -> list filename)
 
 let commands =
   Command.group ~summary:"Manage encrypted secrets."

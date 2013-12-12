@@ -1,8 +1,13 @@
-type t
-
 exception Crypto_failed
 
-val secretbox : string -> string -> t
+type t
 
-val to_char_list : t -> char list
-val of_char_list : char list -> t
+val randombytes_buf : int -> t
+
+module Secretbox : sig
+  type t
+  val box : string -> string -> t
+  val box_open : string -> t -> string
+  val to_list : t -> char list
+  val of_list : char list -> t
+end
