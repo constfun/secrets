@@ -1,7 +1,9 @@
 open Core.Std
 open Re2
 
-type entry = { title : string; payload : (string * string) list; } with sexp
+
+type entry = { title : string; payload : (string * string) list } with sexp
+type entry_with_password = { entry : entry; password : string }
 type 'a db = 'a list with sexp
 
 let key = "01234567891011121314151617181920"
@@ -23,6 +25,21 @@ let save db filename =
 let list filename =
   let db = load filename in
   List.iter db ~f:(fun e -> print_endline e.title)
+
+let passfor filename query =
+  let r = Regex.create_exn (String.concat_map query ~sep:".*?" ~f:String.of_char) in
+  load filename
+  |> List.filter ~f:(fun e -> Regex.matches r e.title)
+  |> List.fold ~init:[] ~f:(fun db' entry ->
+      let password_entry = List.find_map entry.payload ~f:(fun p -> match p with
+        | ("password", password) -> Some { entry; password }
+        | _ -> None
+      ) in
+      match password_entry with
+      | Some e -> e :: db'
+      | None -> db'
+    )
+  |> List.iter ~f:(fun e -> print_endline e.entry.title)
 
 let import file target_filename =
   let r = Regex.create_exn "(^[^[].*)[\\s](.*)$" in
