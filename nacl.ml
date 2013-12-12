@@ -29,11 +29,8 @@ module Secretbox = struct
   let string_of_char_array ?(start=0) arr =
     let alen = Array.length arr in
     assert (start < alen);
-    let s = String.create alen in
-    for i = start to alen - 1 do
-      String.set s i (Array.get arr i)
-    done;
-    s
+    let slen = alen - start in
+    String.init slen ~f:(fun i -> Array.get arr (i + start))
 
   let box key data =
     let nonce = randombytes_buf Libsodium.crypto_secretbox_NONCEBYTES in
