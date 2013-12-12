@@ -8,20 +8,17 @@ exception Crypto_failed
 
 type t = char array
 
-let randombytes_buf size =
-    let buf = Array.make char size ~initial:'\000' in
-    let buf_ptr = to_voidp (Array.start buf) in
-    let buf_size = Unsigned.Size_t.of_int (Array.length buf) in
-    Libsodium.randombytes_buf buf_ptr buf_size;
-    buf
-
-let char_ptr_of_string = coerce string (ptr char)
-
 module Secretbox = struct
   type t = {
-    nonce : char array;
-    padded_cyphertext : char array;
+    arr : char array;
+    n : char ptr;
+    nlen : int;
+    c : char ptr;
+    clen : int
   }
+
+  let char_ptr_of_string =
+    coerce string (ptr char)
 
   let llong_of_int i =
     Signed.LLong.of_int64 (Int64.of_int i)
@@ -32,41 +29,43 @@ module Secretbox = struct
     let slen = alen - start in
     String.init slen ~f:(fun i -> Array.get arr (i + start))
 
-  let box key data =
-    let nonce = randombytes_buf Libsodium.crypto_secretbox_NONCEBYTES in
-    let padded_m = (String.make Libsodium.crypto_secretbox_ZEROBYTES '\000') ^ data in
-    let padded_mlen = String.length padded_m in
-    let padded_cyphertext = Array.make char padded_mlen in
+  let char_array_of_string s =
+    let arrptr = char_ptr_of_string s in
+    Array.from_ptr arrptr (String.length s)
 
-    let c = Array.start padded_cyphertext in
+  let create arr =
+    let n = Array.start arr in
+    let nlen = Libsodium.crypto_secretbox_NONCEBYTES in
+    let c = n +@ nlen in
+    let clen = (Array.length arr) - nlen in
+    { arr; n; nlen; c; clen }
+
+  let box key data =
+    let padded_m = (String.make Libsodium.crypto_secretbox_ZEROBYTES '\000') ^ data in
+    let clen = String.length padded_m in
+    let nlen = Libsodium.crypto_secretbox_NONCEBYTES in
+    let boxed = Array.make char (nlen + clen) in
+
+    let n = Array.start boxed in
+    Libsodium.randombytes_buf (to_voidp n) (Unsigned.Size_t.of_int nlen);
+
+    let c = n +@ nlen in
     let m = char_ptr_of_string padded_m in
-    let mlen = llong_of_int padded_mlen in
+    let mlen = llong_of_int clen in
     let k = char_ptr_of_string key in
-    let n = Array.start nonce in
-    if (Libsodium.crypto_secretbox c m mlen n k) = 0 then { nonce; padded_cyphertext }
+    if (Libsodium.crypto_secretbox c m mlen n k) = 0 then create boxed
     else raise Crypto_failed
 
   let box_open key boxed =
-    let padded_clen = Array.length boxed.padded_cyphertext in
-    let padded_message = Array.make char padded_clen ~initial:'\000' in
-
-    let m = Array.start padded_message in
-    let c = Array.start boxed.padded_cyphertext in
-    let clen = llong_of_int padded_clen in
-    let n = Array.start boxed.nonce in
+    let padded_m = Array.make char boxed.clen ~initial:'\000' in
+    let m = Array.start padded_m in
     let k = char_ptr_of_string key in
-    if (Libsodium.crypto_secretbox_open m c clen n k) = 0 then
-      string_of_char_array padded_message ~start:Libsodium.crypto_secretbox_ZEROBYTES
+    let clen = llong_of_int boxed.clen in
+    if (Libsodium.crypto_secretbox_open m boxed.c clen boxed.n k) = 0 then
+      string_of_char_array padded_m ~start:Libsodium.crypto_secretbox_ZEROBYTES
     else raise Crypto_failed
 
-  let to_string boxed =
-    (string_of_char_array boxed.nonce) ^ (string_of_char_array boxed.padded_cyphertext)
+  let to_string boxed = string_of_char_array boxed.arr
 
-  let of_string s =
-    let sptr = char_ptr_of_string s in
-    let nlen = Libsodium.crypto_secretbox_NONCEBYTES in
-    let clen = (String.length s) - nlen in
-    let nonce = Array.from_ptr sptr nlen in
-    let padded_cyphertext = Array.from_ptr (sptr +@ nlen) clen in
-    { nonce; padded_cyphertext }
+  let of_string s = create (char_array_of_string s)
 end

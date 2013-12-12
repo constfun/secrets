@@ -2,8 +2,6 @@ exception Crypto_failed
 
 type t
 
-val randombytes_buf : int -> t
-
 module Secretbox : sig
   type t
   val box : string -> string -> t
