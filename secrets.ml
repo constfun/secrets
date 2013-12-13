@@ -26,9 +26,29 @@ let list filename =
   let db = load filename in
   List.iter db ~f:(fun e -> print_endline e.title)
 
+let rec rangeinput s e =
+  printf "[%i-%i] %!" s e;
+  let n = Scanf.scanf "%i\n" Fn.id in
+  if n >= s && n <= e then n
+  else rangeinput s e
+
+let choose choices = match choices with
+  | [(_, c)] -> Some c
+  | [] -> None
+  | _ :: _ ->
+    Out_channel.output_string stdout "Which one?\n";
+    List.iteri choices ~f:(fun i (s, _) -> Out_channel.output_string stdout (sprintf "%i: %s\n" (i + 1) s));
+    Out_channel.flush stdout;
+    let ci = (rangeinput 1 (List.length choices)) - 1 in
+    let (_, c) = List.nth_exn choices ci in
+    Some c
+
+let pbcopy s =
+  print_endline s
+
 let passfor filename query =
   let r = Regex.create_exn (String.concat_map query ~sep:".*?" ~f:String.of_char) in
-  load filename
+  let entry = load filename
   |> List.filter ~f:(fun e -> Regex.matches r e.title)
   |> List.fold ~init:[] ~f:(fun db' entry ->
       let password_entry = List.find_map entry.payload ~f:(fun p -> match p with
@@ -39,7 +59,11 @@ let passfor filename query =
       | Some e -> e :: db'
       | None -> db'
     )
-  |> List.iter ~f:(fun e -> print_endline e.entry.title)
+  |> List.map ~f:(fun e -> (e.entry.title, e))
+  |> choose in
+  match entry with
+  | None -> print_endline "Nothing found."
+  | Some e -> pbcopy e.password
 
 let import file target_filename =
   let r = Regex.create_exn "(^[^[].*)[\\s](.*)$" in
