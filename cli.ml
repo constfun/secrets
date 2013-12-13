@@ -47,9 +47,17 @@ let passfor_command =
     )
     (fun query filename () -> Secrets.passfor filename query )
 
+let randpass_command =
+  Command.basic ~summary:"Fuzzy search entries that contain a password."
+    Command.Spec.(
+      empty
+      ++ secrets_file_flag ~should_exist:true
+    )
+    (fun filename () -> Secrets.randpass filename )
+
 let commands =
   Command.group ~summary:"Manage encrypted secrets."
-    ["import", import_command; "list", list_command; "passfor", passfor_command]
+    ["import", import_command; "list", list_command; "passfor", passfor_command; "randpass", randpass_command]
 
 let () =
   Command.run ~version:"0.1.0" commands

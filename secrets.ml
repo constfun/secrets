@@ -48,21 +48,36 @@ let pbcopy s =
   Out_channel.output_string po s;
   ignore (Unix.close_process_out po)
 
+let randstring =
+  Random.self_init ();
+  String.init ~f:(fun i -> Char.of_int_exn (33 + Random.int 94))
+
+let randpass ?(len=20) filename =
+  let db = load filename in
+  printf "Entry title: %!";
+  match In_channel.input_line stdin with
+  | Some title ->
+      let p = (randstring len) in
+      save ( {title; payload=[ ("password", p) ]} :: db ) filename;
+      pbcopy p
+  | None -> Out_channel.output_string stderr "Canceled. A title is required.\n"
+
 let passfor filename query =
   let r = Regex.create_exn (String.concat_map query ~sep:".*?" ~f:String.of_char) in
-  let entry = load filename
-  |> List.filter ~f:(fun e -> Regex.matches r e.title)
-  |> List.fold ~init:[] ~f:(fun db' entry ->
-      let password_entry = List.find_map entry.payload ~f:(fun p -> match p with
-        | ("password", password) -> Some { entry; password }
-        | _ -> None
-      ) in
-      match password_entry with
-      | Some e -> e :: db'
-      | None -> db'
-    )
-  |> List.map ~f:(fun e -> (e.entry.title, e))
-  |> choose in
+  let entry =
+    load filename
+    |> List.filter ~f:(fun e -> Regex.matches r e.title)
+    |> List.fold ~init:[] ~f:(fun db' entry ->
+        let password_entry = List.find_map entry.payload ~f:(fun p -> match p with
+          | ("password", password) -> Some { entry; password }
+          | _ -> None
+        ) in
+        match password_entry with
+        | Some e -> e :: db'
+        | None -> db'
+      )
+    |> List.map ~f:(fun e -> (e.entry.title, e))
+    |> choose in
   match entry with
   | None -> print_endline "Nothing found."
   | Some e -> pbcopy e.password
@@ -73,9 +88,9 @@ let import file target_filename =
     match Regex.find_submatches r l with
     | Error _ -> db
     | Ok submatches ->
-      let title = match submatches.(1) with Some(t) -> String.strip t | None -> assert false in
-      let password = match submatches.(2) with Some(p) -> String.strip p | None -> assert false in
-      let entry = { title; payload=[("password", password)] } in
-      entry :: db
+        let title = match submatches.(1) with Some(t) -> String.strip t | None -> assert false in
+        let password = match submatches.(2) with Some(p) -> String.strip p | None -> assert false in
+        let entry = { title; payload=[("password", password)] } in
+        entry :: db
   ) in
   save db target_filename
