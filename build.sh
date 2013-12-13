@@ -1,3 +1,3 @@
 #!/bin/sh
 
-corebuild -pkg re2 -pkg ctypes.foreign -lflags -cclib,-lsodium cli.native
+corebuild -pkg re2 -pkg ctypes.foreign -pkg scrypt -lflags -cclib,-lsodium cli.native

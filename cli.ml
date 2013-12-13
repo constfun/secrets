@@ -55,9 +55,14 @@ let randpass_command =
     )
     (fun filename () -> Secrets.randpass filename )
 
+let newkey_command =
+  Command.basic ~summary:"Generate a new key file."
+    Command.Spec.(empty)
+    (fun () -> Scrypt.hello )
+
 let commands =
   Command.group ~summary:"Manage encrypted secrets."
-    ["import", import_command; "list", list_command; "passfor", passfor_command; "randpass", randpass_command]
+    ["import", import_command; "list", list_command; "passfor", passfor_command; "randpass", randpass_command; "newkey", newkey_command ]
 
 let () =
   Command.run ~version:"0.1.0" commands
