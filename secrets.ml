@@ -44,7 +44,9 @@ let choose choices = match choices with
     Some c
 
 let pbcopy s =
-  print_endline s
+  let po = Unix.open_process_out "pbcopy" in
+  Out_channel.output_string po s;
+  ignore (Unix.close_process_out po)
 
 let passfor filename query =
   let r = Regex.create_exn (String.concat_map query ~sep:".*?" ~f:String.of_char) in
