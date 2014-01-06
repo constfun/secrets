@@ -8,6 +8,8 @@ type 'a db = 'a list with sexp
 
 let key = "01234567891011121314151617181920"
 
+let create a b = ()
+
 let load filename =
   In_channel.read_all filename
   |> Nacl.Secretbox.of_string
