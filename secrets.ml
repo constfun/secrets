@@ -9,8 +9,11 @@ type 'a db = 'a list with sexp
 let key = "01234567891011121314151617181920"
 
 let create key path =
-  let c = Nacl.Secretbox.box "walken" (Key.to_string key) in
-  print_endline (Nacl.Secretbox.to_string c)
+  let k = (Key.to_string key) in
+  let c = Nacl.Secretbox.box k "walken" in
+  print_endline (Nacl.Secretbox.to_string c);
+  let d = Nacl.Secretbox.box_open k c in
+  print_endline d
 
 let load filename =
   In_channel.read_all filename
