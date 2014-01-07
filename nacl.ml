@@ -1,4 +1,9 @@
+exception Nacl_error
+let _ = Callback.register_exception "Nacl_error" Nacl_error
+
+
 external randombytes : int -> string = "nacl_randombytes"
+
 
 module Secretbox = struct
   let crypto_secretbox_NONCEBYTES = 24

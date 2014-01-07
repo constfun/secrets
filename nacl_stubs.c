@@ -10,7 +10,12 @@
 
 #include <sodium.h>
 
+#define check(A) if(A) { goto error; }
 #define check_mem(A) if(!A) { caml_raise_out_of_memory(); }
+
+#define raise_nacl_error \
+	caml_raise_constant(*caml_named_value("Nacl_error")); \
+	CAMLreturn(1); // Never executed, but needed to prevent a compile time error.
 
 
 CAMLprim value nacl_randombytes(value caml_size) {
@@ -29,37 +34,47 @@ CAMLprim value nacl_randombytes(value caml_size) {
 CAMLprim value nacl_secretbox(value caml_data, value caml_nonce, value caml_key) {
 
 	CAMLparam3(caml_data, caml_nonce, caml_key);
-	CAMLlocal1(cyphertext);
+	CAMLlocal1(caml_cyphertext);
 
-	unsigned char *c = NULL;
-	unsigned char *m = NULL;
-	unsigned char *n = NULL;
-	unsigned char *k = NULL;
-	size_t mlen = 0;
-	size_t dlen = 0;
-	size_t clen = 0;
+	int res = 0;
+	size_t caml_data_len = 0;
+	size_t caml_cyphertext_len = 0;
 
-	dlen = caml_string_length(caml_data);
-	mlen = crypto_secretbox_ZEROBYTES + dlen;
+	unsigned char *c    = NULL;
+	unsigned char *m    = NULL;
+	size_t	       mlen = 0;
+	unsigned char *n    = NULL;
+	unsigned char *k    = NULL;
 
-	unsigned char *pd = &Byte_u(caml_data, 0);
-
-	// Message must be padded by crypto_secretbox_ZEROBYTES of zoroed out bytes.
+	// In the C API, message must be padded by crypto_secretbox_ZEROBYTES of zoroed out bytes.
+	// So we'll create a larger, zeroed, message buffer and copy our data string in there at an offset.
+	// See: http://nacl.cr.yp.to/secretbox.html
+	caml_data_len = caml_string_length(caml_data);
+	mlen = crypto_secretbox_ZEROBYTES + caml_data_len;
 	m = calloc(mlen, 1);
 	check_mem(m);
-	memcpy((m + crypto_secretbox_ZEROBYTES), pd, dlen);
+	memcpy((m + crypto_secretbox_ZEROBYTES), String_val(caml_data), caml_data_len);
 
 	c = caml_stat_alloc(mlen);
 	n = &Byte_u(caml_nonce, 0);
 	k = &Byte_u(caml_key, 0);
 
-	crypto_secretbox(c, m, mlen, n, k);
+	res = crypto_secretbox(c, m, mlen, n, k);
+	check(res);
 
-	clen = mlen - crypto_secretbox_BOXZEROBYTES;
-	cyphertext = caml_alloc_string(clen);
-	memcpy(&Byte_u(cyphertext, 0), (c + crypto_secretbox_BOXZEROBYTES), clen);
+	// In the C API, cyphertext is guranteed to have the first crypto_secretbox_BOXZEROBYTES zeroed.
+	// So we'll chop off those zeroed bytes and return the cyphertext only.
+	caml_cyphertext_len = mlen - crypto_secretbox_BOXZEROBYTES;
+	caml_cyphertext = caml_alloc_string(caml_cyphertext_len);
+	memcpy(String_val(caml_cyphertext), (c + crypto_secretbox_BOXZEROBYTES), caml_cyphertext_len);
 
-	CAMLreturn(cyphertext);
+	CAMLreturn(caml_cyphertext);
+
+error:
+	if(c) { caml_stat_free(c); }
+	if(m) { free(m); }
+
+	raise_nacl_error
 }
 
 CAMLprim value nacl_secretbox_open(value caml_cyphertext, value caml_nonce, value caml_key) {
@@ -86,10 +101,7 @@ CAMLprim value nacl_secretbox_open(value caml_cyphertext, value caml_nonce, valu
 	n = &Byte_u(caml_nonce, 0);
 	k = &Byte_u(caml_key, 0);
 
-	int res = crypto_secretbox_open(m, c, clen, n, k);
-	if( res == -1 ) {
-		caml_raise_out_of_memory();
-	}
+	crypto_secretbox_open(m, c, clen, n, k);
 
 	dlen = clen - crypto_secretbox_ZEROBYTES;
 	decrypted_data = caml_alloc_string(dlen);
