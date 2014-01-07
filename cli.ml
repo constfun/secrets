@@ -32,43 +32,6 @@ let init_command =
       let key = Key.create keypath in
       ignore (Secrets.create key path))
 
-let import_command =
-  Command.basic ~summary:"Import entries from old format."
-    Command.Spec.(
-      empty
-      +> anon (maybe ("filename" %: filename ~should_exist:true ))
-      ++ secrets_file_flag ~should_exist:false
-    )
-    (fun source_filename target_filename () -> match source_filename with
-    | Some(filename) -> Secrets.import (In_channel.create filename) target_filename
-    | None -> Secrets.import stdin target_filename
-    )
-
-let list_command =
-  Command.basic ~summary:"List stored entries."
-    Command.Spec.(
-      empty
-      ++ secrets_file_flag ~should_exist:true
-    )
-    (fun filename () -> Secrets.list filename)
-
-let passfor_command =
-  Command.basic ~summary:"Fuzzy search entries that contain a password."
-    Command.Spec.(
-      empty
-      +> anon ("query" %: string)
-      ++ secrets_file_flag ~should_exist:true
-    )
-    (fun query filename () -> Secrets.passfor filename query )
-
-let randpass_command =
-  Command.basic ~summary:"Fuzzy search entries that contain a password."
-    Command.Spec.(
-      empty
-      ++ secrets_file_flag ~should_exist:true
-    )
-    (fun filename () -> Secrets.randpass filename )
-
 let commands =
   Command.group ~summary:"Manage encrypted secrets."
     ["init", init_command ]

@@ -10,5 +10,5 @@ module Secretbox : sig
   val box : string -> string -> t
   val box_open : string -> t -> string
   val to_string : t -> string
-  (*val of_string : string -> t*)
+  val of_string : string -> t
 end

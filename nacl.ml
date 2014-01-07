@@ -1,3 +1,5 @@
+open Core.Std
+
 exception Nacl_error
 let _ = Callback.register_exception "Nacl_error" Nacl_error
 
@@ -24,4 +26,10 @@ module Secretbox = struct
     nacl_secretbox_open boxed.cyphertext boxed.nonce key
 
   let to_string boxed = boxed.nonce ^ boxed.cyphertext
+
+  let of_string s =
+    let nonce = String.sub s ~pos:0 ~len:crypto_secretbox_NONCEBYTES in
+    let cyphertext_len = (String.length s) - crypto_secretbox_NONCEBYTES in
+    let cyphertext = String.sub s ~pos:crypto_secretbox_NONCEBYTES ~len:cyphertext_len in
+    { nonce; cyphertext }
 end
