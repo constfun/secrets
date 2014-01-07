@@ -42,10 +42,12 @@ CAMLprim value nacl_secretbox(value caml_data, value caml_nonce, value caml_key)
 	dlen = caml_string_length(caml_data);
 	mlen = crypto_secretbox_ZEROBYTES + dlen;
 
+	unsigned char *pd = &Byte_u(caml_data, 0);
+
 	// Message must be padded by crypto_secretbox_ZEROBYTES of zoroed out bytes.
 	m = calloc(mlen, 1);
 	check_mem(m);
-	memcpy(String_val(caml_data), (m + crypto_secretbox_ZEROBYTES), dlen);
+	memcpy((m + crypto_secretbox_ZEROBYTES), pd, dlen);
 
 	c = caml_stat_alloc(mlen);
 	n = &Byte_u(caml_nonce, 0);
@@ -55,7 +57,7 @@ CAMLprim value nacl_secretbox(value caml_data, value caml_nonce, value caml_key)
 
 	clen = mlen - crypto_secretbox_BOXZEROBYTES;
 	cyphertext = caml_alloc_string(clen);
-	memcpy(c, String_val(cyphertext), clen);
+	memcpy(&Byte_u(cyphertext, 0), (c + crypto_secretbox_BOXZEROBYTES), clen);
 
 	CAMLreturn(cyphertext);
 }
@@ -79,7 +81,7 @@ CAMLprim value nacl_secretbox_open(value caml_cyphertext, value caml_nonce, valu
 
 	c = calloc(clen, 1);
 	check_mem(c);
-	memcpy(String_val(caml_cyphertext), (c + crypto_secretbox_BOXZEROBYTES), cyphertext_len);
+	memcpy((c + crypto_secretbox_BOXZEROBYTES), String_val(caml_cyphertext), cyphertext_len);
 
 	n = &Byte_u(caml_nonce, 0);
 	k = &Byte_u(caml_key, 0);
@@ -91,7 +93,7 @@ CAMLprim value nacl_secretbox_open(value caml_cyphertext, value caml_nonce, valu
 
 	dlen = clen - crypto_secretbox_ZEROBYTES;
 	decrypted_data = caml_alloc_string(dlen);
-	memcpy(m, String_val(decrypted_data), dlen);
+	memcpy(String_val(decrypted_data), (m + crypto_secretbox_ZEROBYTES), dlen);
 
 	CAMLreturn(decrypted_data);
 }
