@@ -4,12 +4,11 @@ open Crypto_intf
 
 include Secrets_intf
 
-module Make (C : Crypto_intf) : (Secrets_intf with type key = C.Key.t) = struct
+module Make (C : Crypto_intf) : (Secrets_intf with type key := C.Key.t) = struct
 
-  type key = C.Key.t
   type entry = { title : string; payload : (string * string) list } with sexp
   type db = entry list with sexp
-  type t = { key : key; path : string; db : db }
+  type t = { key : C.Key.t; path : string; db : db }
 
   let decode s = Sexp.of_string s |> db_of_sexp
   let encode sec = sexp_of_db sec |> Sexp.to_string
