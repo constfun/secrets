@@ -1,3 +1,6 @@
-open Secrets_intf
+type t
 
-module NaclSecrets : Secrets_intf with type key = Crypto.NaclCrypto.Key.t
+val create : unit -> t
+
+val to_string : t -> string
+val of_string : string -> t

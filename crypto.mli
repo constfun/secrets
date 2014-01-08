@@ -1,3 +1,4 @@
-open Crypto_intf
+type t
 
-module NaclCrypto : Crypto_intf
+val create : string -> t
+val with_file : string -> key:t -> f:(string -> string) -> unit
