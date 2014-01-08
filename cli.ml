@@ -15,30 +15,20 @@ let filename ~should_exist =
       exit 1
     )
 
-let secrets_file_flag ~should_exist =
-  Command.Spec.(
-    empty
-    +> flag "-secrets-file" (required (filename ~should_exist)) ~doc:"Location of the secrets file."
-  )
-
-let init_command =
-  Command.basic ~summary:"Create a new secrets file."
-    Command.Spec.(
-      empty
-      +> anon ("path" %: filename ~should_exist:false )
-    )
-    (fun path () ->
-      let keypath = Filename.implode [secrets_rc_path; "key"] in
-      let key = Crypto.create keypath in
-      Crypto.with_file path ~key:key ~f:(fun _ ->
-        Secrets.to_string (Secrets.create ())
-      )
-    )
-
-let commands =
-  Command.group ~summary:"Manage encrypted secrets."
-    ["init", init_command ]
-
 let () =
   Unix.mkdir_p ~perm:0o700 secrets_rc_path;
-  Command.run ~version:"0.1.0" commands
+  let key_path = Filename.implode [secrets_rc_path; "key"] in
+
+  let open Command in
+  let init_cmd = basic ~summary:"Create a new secrets file."
+    Spec.(empty +> anon ("path" %: filename ~should_exist:false))
+    (fun path () ->
+      let key = Crypto.create key_path in
+      Crypto.with_file path ~key:key ~f:(fun _ ->
+        Secrets.to_string (Secrets.create ())
+      ))
+  in
+  run ~version:"0.1.0"
+    (group ~summary:"Manage encrypted secrets." [
+        "init", init_cmd
+    ])
