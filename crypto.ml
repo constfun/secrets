@@ -3,7 +3,7 @@ open Core.Std
 type t = string
 
 let create path =
-    match Sys.file_exists_exn ~follow_symlinks:true path with
+    match Sys.file_exists_exn path with
     | true -> In_channel.read_all path
     | false ->
         let key = Nacl.randombytes 32 in
@@ -14,7 +14,7 @@ let encrypt key s = Nacl.Secretbox.to_string (Nacl.Secretbox.box key s)
 let decrypt key s = Nacl.Secretbox.box_open key (Nacl.Secretbox.of_string s)
 
 let with_file path ~key ~f =
-    let contents = match Sys.file_exists_exn ~follow_symlinks:true path with
+    let contents = match Sys.file_exists_exn path with
     | true -> decrypt key (In_channel.read_all path)
     | false -> "" in
     Out_channel.write_all path (encrypt key (f contents))

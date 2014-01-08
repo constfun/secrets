@@ -21,8 +21,6 @@ module Secretbox = struct
     { nonce; cyphertext }
 
   let box_open key boxed =
-    print_endline boxed.cyphertext;
-    print_endline boxed.nonce;
     nacl_secretbox_open boxed.cyphertext boxed.nonce key
 
   let to_string boxed = boxed.nonce ^ boxed.cyphertext
