@@ -29,8 +29,8 @@ let init_command =
     )
     (fun path () ->
       let keypath = Filename.implode [secrets_rc_path; "key"] in
-      let key = Key.create keypath in
-      ignore (Secrets.create key path))
+      let key = Crypto.NaclCrypto.Key.create keypath in
+      ignore (Secrets.NaclSecrets.create key path))
 
 let commands =
   Command.group ~summary:"Manage encrypted secrets."

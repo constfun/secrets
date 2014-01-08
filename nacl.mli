@@ -1,8 +1,6 @@
 exception Nacl_error
 
-
 val randombytes : int -> string
-
 
 module Secretbox : sig
   type t
