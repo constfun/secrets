@@ -42,7 +42,7 @@ let add = with_secrets_file ~f:(fun sec ->
       | None -> "vim" in
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
       let s = In_channel.read_all fname in
-      print_endline s
+      Secrets.parse s
     );
     sec
   )
