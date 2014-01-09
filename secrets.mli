@@ -1,4 +1,5 @@
 type t
+type entry
 
 val create : unit -> t
 
