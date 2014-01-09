@@ -1,10 +1,17 @@
 {
   open Parser
+
+  exception SyntaxError of string
 }
 
-let title = _*
+let white = [' ' '\t']+
+let newline = '\n'
+let key = [^ '\n' ':']+
+let str = [^ '\n']+
 
 rule read =
   parse
-  | title { TITLE (Lexing.lexeme lexbuf) }
+  | (key as key) ':' white? (str as value) newline? { FIELD (key, value) }
+  | (str as title) newline { TITLE title }
+  | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof { EOF }

@@ -43,6 +43,7 @@ let add = with_secrets_file ~f:(fun sec ->
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
       let s = In_channel.read_all fname in
       Secrets.parse s
+      (*Secrets.parse "this is test\nfun: times\nus: of a"*)
     );
     sec
   )
