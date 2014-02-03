@@ -1,32 +1,29 @@
 open Core.Std
-open Lexer
-open Lexing
 
-type entry = { title : string; payload : (string * string) list } with sexp
-type t = entry list with sexp
+module type S = sig
+  type entry = { title : string; payload : (string * string) list } with sexp
+  type t = entry list with sexp
 
-let create () = []
+  val create : unit -> t
+  (*val parse : string -> t option*)
 
-let print_position outx lexbuf =
-  let pos = lexbuf.lex_curr_p in
-  fprintf outx "%d:%d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+  (* XXX: Should Container.Make *)
+  val add : t -> entry -> t
+  val append : t -> t -> t
 
-let parse s =
-  let lexbuf = Lexing.from_string s in
-  let e = try Parser.prog Lexer.read lexbuf with
-  | SyntaxError msg ->
-    fprintf stderr "%a: %s\n" print_position lexbuf msg;
-    None
-  | Parser.Error ->
-    fprintf stderr "%a: syntax error\n" print_position lexbuf;
-    None in
-  match e with
-  | Some l -> Some (List.map l ~f:(fun (title, payload) -> { title; payload }))
-  | None -> None
+  val to_string : t -> string
+  val of_string : string -> t
+end
 
+module Secrets = struct
+  type entry = { title : string; payload : (string * string) list } with sexp
+  type t = entry list with sexp
 
-let add sec entry = entry :: sec
-let append = List.append
+  let create () = []
 
-let to_string sec = Sexp.to_string (sexp_of_t sec)
-let of_string s = t_of_sexp (Sexp.of_string s)
+  let add sec entry = entry :: sec
+  let append = List.append
+
+  let to_string sec = Sexp.to_string (sexp_of_t sec)
+  let of_string s = t_of_sexp (Sexp.of_string s)
+end

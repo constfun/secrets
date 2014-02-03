@@ -1,5 +1,6 @@
 open Core.Std
 open Core_extended.Std
+open Secrets
 
 let rc_path = Filename.expand "~/.secrets"
 let rc_key_path = Filename.implode [rc_path; "key"]
@@ -46,7 +47,7 @@ let add = with_secrets_file ~f:(fun sec ->
       | Some e -> e
       | None -> "vim" in
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
-      Secrets.parse (In_channel.read_all fname)
+      Parser_runner.parse (In_channel.read_all fname)
     ) in
     match secopt with
     | Some additional_sec -> Secrets.append sec additional_sec
@@ -73,10 +74,12 @@ let () =
     Spec.empty
     (fun () -> with_defaults export)
   in
+
   let add_cmd = basic ~summary:"Add a new secret using $EDITOR."
     Spec.empty
     (fun () -> with_defaults add)
   in
+
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
       "init", init_cmd;

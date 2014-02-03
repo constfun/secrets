@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Secrets_parser.Secrets_parser
 
   exception SyntaxError of string
 }
