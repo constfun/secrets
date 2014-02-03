@@ -33,7 +33,12 @@ let init key_path sec_path =
   then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import = with_secrets_file ~f:(fun _ ->
-    Secrets.of_string (In_channel.input_all stdin))
+  Secrets.of_string (In_channel.input_all stdin))
+
+let export = with_secrets_file ~f:(fun sec ->
+  Out_channel.output_string stdout (Secrets.to_string sec);
+  sec
+  )
 
 let add = with_secrets_file ~f:(fun sec ->
     let entryopt = Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
@@ -64,6 +69,10 @@ let () =
     Spec.empty
     (fun () -> with_defaults import)
   in
+  let export_cmd = basic ~summary:"Export secrets to an s-expression."
+    Spec.empty
+    (fun () -> with_defaults export)
+  in
   let add_cmd = basic ~summary:"Add a new secret using $EDITOR."
     Spec.empty
     (fun () -> with_defaults add)
@@ -71,6 +80,7 @@ let () =
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
       "init", init_cmd;
-      "import", import_cmd;
       "add", add_cmd;
+      "import", import_cmd;
+      "export", export_cmd;
     ])
