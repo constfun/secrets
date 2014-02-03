@@ -21,10 +21,11 @@ let parse s =
     fprintf stderr "%a: syntax error\n" print_position lexbuf;
     None in
   match e with
-  | Some (t, p) ->
-      print_endline t;
-      List.iter p ~f:(fun (k, v) -> printf "key %s value %s\n" k v)
-  | None -> ()
+  | Some (title, payload) -> Some { title; payload }
+  | None -> None
+
+
+let add sec entry = entry :: sec
 
 let to_string sec = Sexp.to_string (sexp_of_t sec)
 let of_string s = t_of_sexp (Sexp.of_string s)

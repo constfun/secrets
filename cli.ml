@@ -30,22 +30,24 @@ let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
   with_secrets_file key_path sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path)
-  then Unix.symlink (Filename.realpath sec_path) rc_sec_path
+  then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import = with_secrets_file ~f:(fun _ ->
     Secrets.of_string (In_channel.input_all stdin))
 
 let add = with_secrets_file ~f:(fun sec ->
-    Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
+    let entryopt = Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
       let editor = match Sys.getenv "EDITOR" with
       | Some e -> e
       | None -> "vim" in
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
-      let s = In_channel.read_all fname in
-      Secrets.parse s
-      (*Secrets.parse "this is test\nfun: times\nus: of a"*)
-    );
-    sec
+      Secrets.parse (In_channel.read_all fname)
+    ) in
+    match entryopt with
+    | Some entry -> Secrets.add sec entry
+    | None ->
+        eprintf "Invalid entry.";
+        sec
   )
 
 let with_defaults f =
