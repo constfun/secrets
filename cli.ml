@@ -41,15 +41,15 @@ let export = with_secrets_file ~f:(fun sec ->
   )
 
 let add = with_secrets_file ~f:(fun sec ->
-    let entryopt = Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
+    let secopt = Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
       let editor = match Sys.getenv "EDITOR" with
       | Some e -> e
       | None -> "vim" in
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
       Secrets.parse (In_channel.read_all fname)
     ) in
-    match entryopt with
-    | Some entry -> Secrets.add sec entry
+    match secopt with
+    | Some additional_sec -> Secrets.append sec additional_sec
     | None ->
         eprintf "Invalid entry.";
         sec

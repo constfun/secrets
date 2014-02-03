@@ -1,11 +1,12 @@
 %token <string> TITLE
 %token <string * string> FIELD
 %token NEWLINE
+%token DOUBLE_NEWLINE
 %token EOF
-%start <(string * ((string * string) list)) option> prog
+%start <(string * ((string * string) list)) list option> prog
 %%
 prog:
-  | e = entry; EOF { Some e }
+  | sec = separated_list(DOUBLE_NEWLINE, entry); EOF { Some sec }
   | EOF { None } ;
 entry:
   t = TITLE; p = payload { (t, p) } ;
