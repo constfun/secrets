@@ -41,15 +41,25 @@ let export = with_secrets_file ~f:(fun sec ->
   sec
   )
 
+let edit_and_parse ?init_contents () =
+  let write_fn = match init_contents with
+  | Some init_contents -> (fun oc -> Out_channel.output_string oc init_contents)
+  | None -> ignore in
+  Filename.with_open_temp_file  "edit" ".sec" ~write:write_fn ~in_dir:rc_path ~f:(fun fname ->
+    let editor = match Sys.getenv "EDITOR" with
+    | Some e -> e
+    | None -> "vim" in
+    ignore (Unix.system (sprintf "%s '%s'" editor fname));
+    Secrets.of_string (In_channel.read_all fname)
+    )
+
 let add = with_secrets_file ~f:(fun sec ->
-    let new_entries = Filename.with_open_temp_file  "add" ".sec" ~write:ignore ~in_dir:rc_path ~f:(fun fname ->
-      let editor = match Sys.getenv "EDITOR" with
-      | Some e -> e
-      | None -> "vim" in
-      ignore (Unix.system (sprintf "%s '%s'" editor fname));
-      Secrets.of_string (In_channel.read_all fname)
-    ) in
+    let new_entries = edit_and_parse () in
     Secrets.append sec new_entries
+  )
+
+let edit = with_secrets_file ~f:(fun sec ->
+    edit_and_parse ~init_contents:(Secrets.to_string sec) ()
   )
 
 let with_defaults f =
@@ -70,16 +80,19 @@ let () =
     Spec.empty
     (fun () -> with_defaults export)
   in
-
   let add_cmd = basic ~summary:"Add a new secret using $EDITOR."
     Spec.empty
     (fun () -> with_defaults add)
   in
-
+  let edit_cmd = basic ~summary:"Edit all secrets using $EDITOR."
+    Spec.empty
+    (fun () -> with_defaults edit)
+  in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
       "init", init_cmd;
       "add", add_cmd;
+      "edit", edit_cmd;
       "import", import_cmd;
       "export", export_cmd;
     ])
