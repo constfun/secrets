@@ -10,7 +10,6 @@ let print_position outx lexbuf =
 
 let parse s =
   let lexbuf = Lexing.from_string s in
-  print_string s;
   try Parser.prog Lexer.read lexbuf with
   | SyntaxError msg as e ->
     fprintf stderr "%a: %s\n" print_position lexbuf msg;
