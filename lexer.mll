@@ -1,5 +1,5 @@
 {
-  open Secrets_parser.Secrets_parser
+  open Parser
 
   exception SyntaxError of string
 }
@@ -11,8 +11,8 @@ let str = [^ '\n']+
 
 rule read =
   parse
-  | newline newline { DOUBLE_NEWLINE }
   | (key as key) ':' white? (str as value) newline? { FIELD (key, value) }
   | (str as title) newline { TITLE title }
+  | newline* eof { EOF }
+  | newline { NEWLINE }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
-  | eof { EOF }

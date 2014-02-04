@@ -1,15 +1,14 @@
-%parameter <S : Secrets.S>
 %token <string> TITLE
 %token <string * string> FIELD
 %token NEWLINE
-%token DOUBLE_NEWLINE
 %token EOF
-%start <S.t option> prog
+%start <Entry.Entry.t list> prog
 %%
 prog:
-  | sec = separated_list(DOUBLE_NEWLINE, entry); EOF { Some sec }
-  | EOF { None } ;
+  NEWLINE*; sec = separated_list(entry_separator, entry); EOF { sec }
+entry_separator:
+  NEWLINE; NEWLINE { }
 entry:
-  t = TITLE; p = payload { {title=t; payload=p} } ;
+  t = TITLE; p = payload { Entry.Entry.create t p }
 payload:
-  p = nonempty_list(FIELD) { p } ;
+  p = nonempty_list(FIELD) { p }

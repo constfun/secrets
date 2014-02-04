@@ -1,8 +1,12 @@
 open Core.Std
+open Entry
 
-module type S = sig
-  type entry = { title : string; payload : (string * string) list } with sexp
-  type t = entry list with sexp
+
+module Secrets : sig
+  type entry
+  type t
+
+  include Stringable with type t := t
 
   val create : unit -> t
   (*val parse : string -> t option*)
@@ -10,20 +14,26 @@ module type S = sig
   (* XXX: Should Container.Make *)
   val add : t -> entry -> t
   val append : t -> t -> t
-
-  val to_string : t -> string
-  val of_string : string -> t
-end
-
-module Secrets = struct
-  type entry = { title : string; payload : (string * string) list } with sexp
-  type t = entry list with sexp
+end = struct
+  type entry = Entry.t
+  type t = entry list
 
   let create () = []
 
   let add sec entry = entry :: sec
   let append = List.append
 
-  let to_string sec = Sexp.to_string (sexp_of_t sec)
-  let of_string s = t_of_sexp (Sexp.of_string s)
+  let of_string s =
+    Secrets_parser.parse s
+
+  let to_string sec =
+    let open Bigbuffer in (
+      let buff = create 256 in
+      List.iter sec ~f:(fun e ->
+        add_string buff (Entry.to_string e);
+        add_string buff "\n\n"
+      );
+      contents buff
+    )
+
 end
