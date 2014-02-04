@@ -1,6 +1,7 @@
 open Core.Std
 open Core_extended.Std
 open Secrets
+open Termbox
 
 let rc_path = Filename.expand "~/.secrets"
 let rc_key_path = Filename.implode [rc_path; "key"]
@@ -62,6 +63,21 @@ let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
   )
 
+let find = with_secrets_file ~f:(fun sec ->
+  let tb = Termbox.init () in
+  Termbox.set_clear_attributes Blue White;
+  Termbox.clear ();
+  Termbox.set_cell_char 1 1 '1';
+  Termbox.set_cell_char ~fg:Red ~bg:Yellow 5 5 '2';
+  Termbox.set_cell_utf8 10 10 0x1F48El;
+  Termbox.present ();
+  Unix.sleep 2;
+  fprintf stdout "w: %i, h: %i\n" (Termbox.width ()) (Termbox.height ());
+  Termbox.shutdown ();
+  sec
+  )
+
+
 let with_defaults f =
   let sec_path = Filename.realpath rc_sec_path in
   f rc_key_path sec_path
@@ -88,11 +104,16 @@ let () =
     Spec.empty
     (fun () -> with_defaults edit)
   in
+  let find_cmd = basic ~summary:"Start fuzzy search."
+    Spec.empty
+    (fun () -> with_defaults find)
+  in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
       "init", init_cmd;
       "add", add_cmd;
       "edit", edit_cmd;
+      "find", find_cmd;
       "import", import_cmd;
       "export", export_cmd;
     ])

@@ -1,21 +1,9 @@
-#define CAML_NAME_SPACE
-
-#include <string.h>
-
-#include <caml/mlvalues.h>
-#include <caml/memory.h>
-#include <caml/alloc.h>
-#include <caml/callback.h>
-#include <caml/fail.h>
+#include "common.h"
 
 #include <sodium.h>
 
-#define check(A) if(A) { goto error; }
-#define check_mem(A) if(!A) { caml_raise_out_of_memory(); }
 
-#define raise_nacl_error \
-	caml_raise_constant(*caml_named_value("Nacl_error")); \
-	CAMLreturn(1); // Never executed, but needed to prevent a compile time error.
+#define raise_nacl_error raise_error("Nacl_error")
 
 
 CAMLprim value nacl_randombytes(value caml_size) {
