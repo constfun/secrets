@@ -71,7 +71,11 @@ let find = with_secrets_file ~f:(fun sec ->
   Termbox.set_cell_char ~fg:Red ~bg:Yellow 5 5 '2';
   Termbox.set_cell_utf8 10 10 0x1F48El;
   Termbox.present ();
-  Unix.sleep 2;
+  (
+  match Termbox.poll_event () with
+  | Key e -> fprintf stdout "ch: %c\n" (Char.of_int_exn (Int32.to_int_exn e.ch))
+  | Resize e -> fprintf stdout "rw: %i, rh: %i" e.width e.height;
+  );
   fprintf stdout "w: %i, h: %i\n" (Termbox.width ()) (Termbox.height ());
   Termbox.shutdown ();
   sec

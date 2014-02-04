@@ -11,6 +11,21 @@ type color =
   | Cyan
   | White
 
+type key_event = {
+  modifier : bool;
+  key : int;
+  ch : int32
+}
+
+type resize_event = {
+  width : int;
+  height : int
+}
+
+type event =
+  | Key of key_event
+  | Resize of resize_event
+
 module Termbox : sig
   val init : unit -> int
   val shutdown : unit -> unit
@@ -28,6 +43,8 @@ module Termbox : sig
 
   val set_cell_char : ?fg : color -> ?bg : color -> int -> int -> char -> unit
   val set_cell_utf8 : ?fg : color -> ?bg : color -> int -> int -> int32 -> unit
+
+  val poll_event : unit -> event
 end = struct
   type cell = { ch : int; fg : color; bg : color }
   type buff = cell list
@@ -69,4 +86,6 @@ end = struct
   let set_cell_char ?(fg=Default) ?(bg=Default) x y ch =
     let ch_int32 = Int32.of_int_exn (Char.to_int ch) in
     set_cell_utf8 ~fg ~bg x y ch_int32
+
+  external poll_event : unit -> event = "tbstub_poll_event"
 end
