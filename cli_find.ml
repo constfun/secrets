@@ -18,7 +18,9 @@ let render_line n s =
   Termbox.present ()
 
 let render ui =
-  render_line 0 ("find: " ^ ui.search_string)
+  let search_field = "find: " ^ ui.search_string in
+  Termbox.set_cursor (String.length search_field) 0;
+  render_line 0 search_field
 
 let rec loop ui =
   render ui;
