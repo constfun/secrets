@@ -72,20 +72,7 @@ end = struct
 
   external clear : unit -> unit = "tb_clear"
 
-  let int_of_color = function
-    | Default -> 0x00
-    | Black -> 0x01
-    | Red -> 0x02
-    | Green -> 0x03
-    | Yellow -> 0x04
-    | Blue -> 0x05
-    | Magenta -> 0x06
-    | Cyan -> 0x07
-    | White -> 0x08
-
-  external tb_set_clear_attributes : int -> int -> unit = "tbstub_set_clear_attributes"
-  let set_clear_attributes fg bg =
-    tb_set_clear_attributes (int_of_color fg) (int_of_color bg)
+  external set_clear_attributes : color -> color -> unit = "tbstub_set_clear_attributes"
 
   external present : unit -> unit = "tb_present"
 
@@ -94,10 +81,10 @@ end = struct
   let hide_cursor () =
     set_cursor (-1) (-1)
 
-  external tb_change_cell : int -> int -> int32 -> int -> int -> unit = "tbstub_change_cell"
+  external tb_change_cell : int -> int -> int32 -> color -> color -> unit = "tbstub_change_cell"
 
   let set_cell_utf8 ?(fg=Default) ?(bg=Default) x y ch =
-    tb_change_cell x y ch (int_of_color fg) (int_of_color bg)
+    tb_change_cell x y ch fg bg
 
   let set_cell_char ?(fg=Default) ?(bg=Default) x y ch =
     let ch_int32 = Int32.of_int_exn (Char.to_int ch) in
