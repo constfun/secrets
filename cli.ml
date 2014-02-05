@@ -63,6 +63,21 @@ let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
   )
 
+
+let rec input () =
+  match Termbox.poll_event () with
+  | Key c -> (
+      match c with
+      | 'q' -> ()
+      | _ -> (
+          Termbox.set_cell_char 1 1 c;
+          Termbox.present ();
+          input ()
+      )
+  )
+  | Resize (w, h) -> fprintf stdout "rw: %i, rh: %i" w h
+
+
 let find = with_secrets_file ~f:(fun sec ->
   let tb = Termbox.init () in
   Termbox.set_clear_attributes Blue White;
@@ -71,11 +86,7 @@ let find = with_secrets_file ~f:(fun sec ->
   Termbox.set_cell_char ~fg:Red ~bg:Yellow 5 5 '2';
   Termbox.set_cell_utf8 10 10 0x1F48El;
   Termbox.present ();
-  (
-  match Termbox.poll_event () with
-  | Key e -> fprintf stdout "ch: %c\n" (Char.of_int_exn (Int32.to_int_exn e.ch))
-  | Resize e -> fprintf stdout "rw: %i, rh: %i" e.width e.height;
-  );
+  input ();
   fprintf stdout "w: %i, h: %i\n" (Termbox.width ()) (Termbox.height ());
   Termbox.shutdown ();
   sec
