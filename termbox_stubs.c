@@ -54,21 +54,42 @@ void tbstub_change_cell(value caml_x, value caml_y, value caml_ch, value caml_fg
 CAMLprim value tbstub_poll_event() {
 
 	CAMLparam0();
-	CAMLlocal2(caml_e, caml_ch);
+	CAMLlocal3(caml_e, caml_ch, caml_size);
 
 	struct tb_event e;
 	tb_poll_event(&e);
 
-	caml_e = caml_alloc(0, 6);
-	Store_field(caml_e, 0, Val_int(e.type));
-	Store_field(caml_e, 1, Val_int(e.mod));
-	Store_field(caml_e, 2, Val_int(e.key));
+	if( e.type == TB_EVENT_KEY ) {
 
-	caml_ch = caml_copy_int32(e.ch);
-	Store_field(caml_e, 3, caml_ch);
+		// Key
+		if( e.ch == 0 && e.key > 0xFF ) {
 
-	Store_field(caml_e, 4, Val_int(e.w));
-	Store_field(caml_e, 5, Val_int(e.h));
+			caml_e = caml_alloc(1, 0);
+			Store_field(caml_e, 0, Val_int(0xFFFF - e.key));
+		}
+		// Ascii
+		else if( e.ch <= 0xFF ) {
+
+			caml_e = caml_alloc(1, 1);
+			Store_field(caml_e, 0, Val_int(e.ch | e.key));
+		}
+		// Utf8
+		else {
+
+			caml_e = caml_alloc(1, 2);
+			caml_ch = caml_copy_int32(e.ch);
+			Store_field(caml_e, 0, caml_ch);
+		}
+	}
+	// Resize
+	else {
+		caml_size = caml_alloc_tuple(2);
+		Store_field(caml_size, 0, Val_int(e.w));
+		Store_field(caml_size, 1, Val_int(e.h));
+
+		caml_e = caml_alloc(1, 3);
+		Store_field(caml_e, 0, caml_size);
+	}
 
 	CAMLreturn(caml_e);
 }

@@ -11,8 +11,34 @@ type color =
   | Cyan
   | White
 
+type key =
+  | F1
+  | F2
+  | F3
+  | F4
+  | F5
+  | F6
+  | F7
+  | F8
+  | F9
+  | F10
+  | F11
+  | F12
+  | Insert
+  | Delete
+  | Home
+  | End
+  | Page_up
+  | Page_down
+  | Arrow_up
+  | Arrow_down
+  | Arrow_left
+  | Arrow_right
+
 type event =
-  | Key of char
+  | Key of key
+  | Ascii of char
+  | Utf8 of int32
   | Resize of int * int
 
 module Termbox : sig
@@ -77,27 +103,5 @@ end = struct
     let ch_int32 = Int32.of_int_exn (Char.to_int ch) in
     set_cell_utf8 ~fg ~bg x y ch_int32
 
-
-  let tb_EVENT_KEY = 1
-  let tb_EVENT_RESIZE = 2
-
-  type tb_event = {
-    _type : int;
-    _mod : int;
-    key : int;
-    ch : int32;
-    w : int;
-    h : int;
-  }
-  external tb_poll_event : unit -> tb_event = "tbstub_poll_event"
-
-  let rec poll_event () =
-    let e = tb_poll_event () in
-    match e._type with
-    | tb_EVENT_KEY -> (
-      match Option.((Int32.to_int e.ch) >>= Char.of_int) with
-      | Some ch -> Key ch
-      | None -> poll_event ()
-    )
-    | tb_EVENT_RESIZE -> Resize (e.w, e.h)
+  external poll_event : unit -> event = "tbstub_poll_event"
 end
