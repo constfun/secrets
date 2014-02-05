@@ -4,9 +4,14 @@ open Core.Std
 module Entry : sig
   type t
   val create : string -> (string * string) list -> t
+  val title : t -> string
+  val payload : t -> (string * string) list
   val to_string : t -> string
 end = struct
   type t = { title : string; payload : (string * string) list }
+
+  let title e = e.title
+  let payload e = e.payload
 
   let create title payload = {title; payload}
   let to_string e =

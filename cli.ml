@@ -63,12 +63,10 @@ let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
   )
 
-
 let find = with_secrets_file ~f:(fun sec ->
-  Cli_find.start ();
+  Cli_find.start sec;
   sec
   )
-
 
 let with_defaults f =
   let sec_path = Filename.realpath rc_sec_path in
