@@ -3,43 +3,6 @@ open Secrets
 open Termbox
 
 
-(*
-let rec render_results ui res start stop =
-  if start > stop then () else
-    match res with
-    | r :: tail ->
-        render_line ~hl:r.summary_hl start r.summary;
-        render_results ui tail (start + 1) stop
-    | [] ->
-        clear_line start;
-        render_results ui res (start + 1) stop
-
-let render ui =
-  let sb = ui.controls.(search_box_indx) in
-  let sb_rect = Label.get_rect sb in
-  let sb_text = Label.get_text sb in
-  Termbox.set_cursor (sb_rect.x + (String.length sb_text)) sb_rect.y;
-  render_results ui ui.search_results 1 (Termbox.height ());
-  Termbox.present ()
-
-let update_search ui search_string =
-  let search_results = Secrets.search ui.secrets search_string in
-  { ui with search_string; search_results }
-
-let rec loop ui =
-  render ui;
-  match Termbox.poll_event () with
-  | Ascii c when c = ctrl_C -> ()
-  | Ascii c when Char.is_print c || c = ' ' ->
-    let search_string = ui.search_string ^ (Char.to_string c) in
-    loop (update_search ui search_string)
-  | Ascii c when c = backspace ->
-    let search_string = String.drop_suffix ui.search_string 1 in
-    loop (update_search ui search_string)
-  | Ascii _
-  | Key _ | Utf8 _ | Resize _ -> loop ui
-  *)
-
 type cell = {
   fg : color;
   bg : color;
@@ -61,7 +24,7 @@ module type Control_instance = sig
 end
 
 
-let make_control (type a)
+let make_control_instance (type a)
   (module C : Control with type t = a) pos ctl
   =
   (module struct
@@ -73,41 +36,50 @@ let make_control (type a)
 
 module Label : sig
   include Control
-  val create : ?hl : hl -> int * int -> string array -> t
+  val create : ?hl : hl array -> int * int -> string array -> t
+  val update : ?hl : hl array -> t -> string array -> unit
 end = struct
   type t = {
     size : int * int;
-    lines : string array;
-    hl : hl;
+    lines : string array ref;
+    hl : hl array ref;
   }
 
-  let nohl = Set.empty Int.comparator
+  let create ?(hl=[||]) size lines = { size; lines=(ref lines); hl=(ref hl) }
 
-  let create ?(hl=nohl) size lines = { size; lines; hl }
+  let update ?(hl=[||]) l lines =
+    l.lines := lines;
+    l.hl := hl
+
   let get_size l = l.size
+
   let get_cell l x y =
-    let ch = (
-      if y >= (Array.length l.lines) then '\x00' else
-        let text = l.lines.(y) in
+    let blank = ('\x00', Default) in
+    let ch, fg = (
+      if y >= (Array.length !(l.lines)) then blank else
+        let text = !(l.lines).(y) in
         let tlen = String.length text in
-        if x < tlen then String.get text x else '\x00'
+        let fg = if y >= (Array.length !(l.hl)) then Default else (
+          let hl = !(l.hl).(y) in
+          if (Set.mem hl x) then Red else Default
+        ) in
+        if x < tlen then (String.get text x, fg) else blank
     ) in
-    let fg = if (Set.mem l.hl x) then Red else Default in
     { ch; fg; bg=Default }
 end
 
+
 module Input : sig
   include Control
-  val create : ?on_change:(string -> unit) -> int * int -> t
-  val handle_event : t -> event -> unit
+  val create : int * int -> t
+  val handle_event : t -> event -> string option
 end = struct
   type t = {
     size : int * int;
     text : string ref;
-    on_change : (string -> unit)
   }
 
-  let create ?(on_change=ignore) size = { size; text=(ref ""); on_change }
+  let create size = { size; text=(ref "") }
   let get_size inp = inp.size
 
   let get_cell inp x y =
@@ -115,15 +87,17 @@ end = struct
     let ch = if x < tlen then String.get !(inp.text) x else '\x00' in
     { ch; fg=Default; bg=Default }
 
-  let handle_event  inp e =
-    let text = match e with
+  let handle_event inp e =
+    match e with
     | Ascii c when Char.is_print c || c = ' ' ->
-        !(inp.text) ^ (Char.to_string c)
+        let text = !(inp.text) ^ (Char.to_string c) in
+        inp.text := text;
+        Some text
     | Ascii c when c = '\x7F' (* backspace *) ->
-        String.drop_suffix !(inp.text) 1
-    | _ -> !(inp.text) in
-    inp.text := text;
-    inp.on_change text
+        let text = String.drop_suffix !(inp.text) 1 in
+        inp.text := text;
+        Some text
+    | _ -> None
 end
 
 
@@ -143,9 +117,10 @@ let render_controls ctls =
 
 type state = {
   secrets : Secrets.t;
-  input : Input.t;
+  input_ctl : Input.t;
+  results_ctl : Label.t;
   controls : (module Control_instance) list;
-  search_results : qres list
+  results: qres list
 }
 
 
@@ -154,8 +129,18 @@ let rec loop state =
   match Termbox.poll_event () with
   | Ascii c when c = '\x03' (* CTRL_C *) -> ()
   | (Ascii _ | Key _ | Utf8 _) as e ->
-      Input.handle_event state.input e;
-      loop state
+      (match Input.handle_event state.input_ctl e with
+      | Some query ->
+        let results = Secrets.search state.secrets query in
+        let rlen = List.length results in
+        let lines = Array.create rlen "" in
+        let hl = Array.create rlen (Set.empty Int.comparator) in
+        List.iteri results ~f:(fun i { summary; summary_hl; _ } ->
+          lines.(i) <- summary;
+          hl.(i) <- summary_hl);
+        Label.update state.results_ctl lines ~hl;
+        loop { state with results }
+      | None -> loop state)
   | Resize _ -> loop state
 
 
@@ -163,10 +148,12 @@ let start secrets =
   ignore (Termbox.init ());
   let winw = Termbox.width () in
   let winh = Termbox.height () in
-  let input = Input.create ((winw - 6), 1) in
+  let input_ctl = Input.create ((winw - 6), 1) in
+  let results_ctl = Label.create ((winw - 1), (winh - 1)) [||] in
   let controls = [
-    make_control (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
-    make_control (module Input) (6, 0) input
+    make_control_instance (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
+    make_control_instance (module Input) (6, 0) input_ctl;
+    make_control_instance (module Label) (6, 1) results_ctl
   ] in
-  loop { secrets; input; controls; search_results=[] };
+  loop { secrets; input_ctl; results_ctl; controls; results=[] };
   Termbox.shutdown ()
