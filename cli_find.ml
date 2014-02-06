@@ -5,18 +5,19 @@ open Termbox
 type t = {
   secrets : Secrets.t;
   search_string : string;
-  search_results : string list
+  search_results : qres list
 }
 
 let ctrl_C = '\x03'
 let backspace = '\x7F'
 
-let render_line n s =
+let render_line ?(hl=(Set.empty Int.comparator)) n s=
   let w = Termbox.width () in
   let slen = String.length s in
   for i = 0 to w do
     let c = if i < slen then String.get s i else '\x00' in
-    Termbox.set_cell_char i n c
+    let fg = if (Set.mem hl i) then Red else Default in
+    Termbox.set_cell_char ~fg i n c
   done
 
 let clear_line n = render_line n ""
@@ -24,8 +25,8 @@ let clear_line n = render_line n ""
 let rec render_results res start stop =
   if start > stop then () else
     match res with
-    | hd :: tail ->
-        render_line start hd;
+    | r :: tail ->
+        render_line ~hl:r.summary_hl start r.summary;
         render_results tail (start + 1) stop
     | [] ->
         clear_line start;

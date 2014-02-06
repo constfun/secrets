@@ -3,6 +3,12 @@ open Entry
 open Re2
 
 
+type qres = {
+  summary : string;
+  summary_hl : (int, Int.comparator_witness) Set.t;
+  value: string;
+}
+
 module Secrets : sig
   type entry
   type t
@@ -16,7 +22,7 @@ module Secrets : sig
   val add : t -> entry -> t
   val append : t -> t -> t
 
-  val search : t -> string -> string list
+  val search : t -> string -> qres list
 end = struct
   type entry = Entry.t
   type t = entry list
@@ -29,13 +35,24 @@ end = struct
   let search sec query =
     let search_space = List.fold sec ~init:[] ~f:(fun acc e ->
       let prefix = Entry.title e ^ " " in
-      List.fold (Entry.payload e) ~init:acc ~f:(fun acc (k, _) -> (e, prefix ^ k) :: acc)
+      List.fold (Entry.payload e) ~init:acc ~f:(fun acc (k, v) -> (prefix ^ k, v) :: acc)
     ) in
-    let r = Regex.create_exn (String.concat_map query ~sep:".*?" ~f:String.of_char) in
-    List.filter_map search_space ~f:(fun (e, s) ->
-      match Regex.matches r s with
-      | true -> Some s
-      | false -> None
+    let rs = String.concat_map query ~sep:".*?" ~f:(fun c -> "(" ^ String.of_char c ^ ")") in
+    let r = Regex.create_exn rs in
+    List.filter_map search_space ~f:(fun (summary, value) ->
+      match Regex.get_matches ~max:1 r summary with
+      | Ok r -> (match r with
+        | m :: _ ->
+            let summary_hl = ref (Set.empty Int.comparator) in
+            let num_submatches = (String.length query) in
+            for i = 1 to num_submatches do
+              let (match_indx, len) = Regex.Match.get_pos_exn ~sub:(`Index i) m in
+              summary_hl := Set.add !summary_hl match_indx
+            done;
+            Some { summary; summary_hl=(!summary_hl); value }
+        | [] -> None
+      )
+      | Error e -> None
     )
 
   let of_string s =
