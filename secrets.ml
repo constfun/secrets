@@ -3,9 +3,11 @@ open Entry
 open Re2
 
 
+type hl = (int, Int.comparator_witness) Set.t
+
 type qres = {
   summary : string;
-  summary_hl : (int, Int.comparator_witness) Set.t;
+  summary_hl : hl;
   value: string;
 }
 
