@@ -4,11 +4,6 @@ open Termbox
 
 
 (*
-let search_box_indx = 0
-
-let ctrl_C = '\x03'
-let backspace = '\x7F'
-
 let rec render_results ui res start stop =
   if start > stop then () else
     match res with
@@ -66,7 +61,7 @@ module type Control_instance = sig
 end
 
 
-let make_instance (type a)
+let make_control (type a)
   (module C : Control with type t = a) pos ctl
   =
   (module struct
@@ -78,45 +73,77 @@ let make_instance (type a)
 
 module Label : sig
   include Control
-  val create : ?hl : hl -> int * int -> string -> t
+  val create : ?hl : hl -> int * int -> string array -> t
 end = struct
   type t = {
     size : int * int;
-    text : string;
+    lines : string array;
     hl : hl;
   }
 
   let nohl = Set.empty Int.comparator
 
-  let create ?(hl=nohl) size text = { size; text; hl }
+  let create ?(hl=nohl) size lines = { size; lines; hl }
   let get_size l = l.size
   let get_cell l x y =
-    let tlen = String.length l.text in
-    let ch = if x < tlen then String.get l.text x else '\x00' in
+    let ch = (
+      if y >= (Array.length l.lines) then '\x00' else
+        let text = l.lines.(y) in
+        let tlen = String.length text in
+        if x < tlen then String.get text x else '\x00'
+    ) in
     let fg = if (Set.mem l.hl x) then Red else Default in
     { ch; fg; bg=Default }
 end
 
+module Input : sig
+  include Control
+  val create : ?on_change:(string -> unit) -> int * int -> t
+  val handle_event : t -> event -> unit
+end = struct
+  type t = {
+    size : int * int;
+    text : string ref;
+    on_change : (string -> unit)
+  }
 
-let render_control x y (module I : Control_instance) =
-  let (w, h) = I.C.get_size I.ctl in
-  for cy = y to h-1 do
-    for cx = x to w-1 do
-      let cell = I.C.get_cell I.ctl cx cy in
-      Termbox.set_cell_char ~fg:cell.fg ~bg:cell.bg cx cy cell.ch
-    done
-  done
+  let create ?(on_change=ignore) size = { size; text=(ref ""); on_change }
+  let get_size inp = inp.size
+
+  let get_cell inp x y =
+    let tlen = String.length !(inp.text) in
+    let ch = if x < tlen then String.get !(inp.text) x else '\x00' in
+    { ch; fg=Default; bg=Default }
+
+  let handle_event  inp e =
+    let text = match e with
+    | Ascii c when Char.is_print c || c = ' ' ->
+        !(inp.text) ^ (Char.to_string c)
+    | Ascii c when c = '\x7F' (* backspace *) ->
+        String.drop_suffix !(inp.text) 1
+    | _ -> !(inp.text) in
+    inp.text := text;
+    inp.on_change text
+end
 
 
 let render_controls ctls =
-  List.iter ctls ~f:(fun c ->
-    render_control 0 0 c
+  List.iter ctls ~f:(fun (module I : Control_instance) ->
+    let (x, y) = I.pos in
+    let (w, h) = I.C.get_size I.ctl in
+    for cy = 0 to h-1 do
+      for cx = 0 to w-1 do
+        let cell = I.C.get_cell I.ctl cx cy in
+        Termbox.set_cell_char ~fg:cell.fg ~bg:cell.bg (x + cx) (y + cy) cell.ch
+      done
+    done
   );
   Termbox.present ()
 
 
 type state = {
   secrets : Secrets.t;
+  input : Input.t;
   controls : (module Control_instance) list;
   search_results : qres list
 }
@@ -125,16 +152,21 @@ type state = {
 let rec loop state =
   render_controls state.controls;
   match Termbox.poll_event () with
-  | Key _ -> ()
-  | _ -> loop state
+  | Ascii c when c = '\x03' (* CTRL_C *) -> ()
+  | (Ascii _ | Key _ | Utf8 _) as e ->
+      Input.handle_event state.input e;
+      loop state
+  | Resize _ -> loop state
 
 
 let start secrets =
   ignore (Termbox.init ());
   let winw = Termbox.width () in
   let winh = Termbox.height () in
+  let input = Input.create ((winw - 6), 1) in
   let controls = [
-    make_instance (module Label) (0, 0) (Label.create (6, 1) "find: ")
+    make_control (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
+    make_control (module Input) (6, 0) input
   ] in
-  loop { secrets; controls; search_results=[] };
+  loop { secrets; input; controls; search_results=[] };
   Termbox.shutdown ()
