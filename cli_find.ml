@@ -61,25 +61,38 @@ let search secrets query =
   hl.(i) <- summary_hl);
   (lines, hl)
 
+let slider_cells r sel (x, y) (w, h) =
+  let rlen = Array.length r in
+  let ch = if y = sel && x = (w-1) && rlen > 0 then '>' else '\x00' in
+  { ch; fg=Default; bg=Default }
+
+let slider_input e sel h =
+  match e with
+  | Key Arrow_down -> Int.min (h - 1) (sel + 1)
+  | Key Arrow_up -> Int.max 0 (sel - 1)
+  | _ -> sel
+
 let rec loop state =
   let winw = Termbox.width () in
   let winh = Termbox.height () in
+  let sliderh = winh - 1 in
   render_cells ~pos:(0, 0) ~size:(6, 1) ~f:(string_cells "find: ");
   render_cells ~pos:(6, 0) ~size:((winw-6), 1) ~f:(string_cells state.query);
   render_cells ~pos:(6, 1) ~size:((winw-6), (winh-1)) ~f:(results_cells state.results state.results_hl);
+  render_cells ~pos:(0, 1) ~size:(5, sliderh) ~f:(slider_cells state.results state.selection);
   Termbox.present ();
   let state = match Termbox.poll_event () with
     | Ascii c when c = '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ | Utf8 _) as e ->
         let query = handle_input e state.query in
         let (results, results_hl) = search state.secrets query in
-        Some { state with query; results; results_hl }
-    | _ -> Some state
+        let selection = slider_input e state.selection (Int.min (Array.length results) sliderh) in
+        Some { state with query; results; results_hl; selection }
+    | Resize _ -> Some state
   in
   match state with
   | Some s -> loop s
   | None -> ()
-
 
 let start secrets =
   ignore (Termbox.init ());
