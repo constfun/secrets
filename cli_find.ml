@@ -104,7 +104,8 @@ end
 module Slider : sig
   include Control
   val create : int -> int -> t
-  val update : t -> int -> unit
+  val set_pos : t -> int -> unit
+  val handle_event : t -> event -> unit
 end = struct
   type t = {
     h : int;
@@ -113,10 +114,18 @@ end = struct
 
   let create h pos = { h; pos=(ref pos) }
   let get_size sl = (1, sl.h)
-  let update sl pos = sl.pos := pos
+  let set_pos sl pos = sl.pos := pos
   let get_cell sl _ y =
     let ch = if y = !(sl.pos) then '>' else '\x00' in
     { ch; fg=Default; bg=Default }
+
+  let handle_event sl e =
+    match e with
+    | Key Arrow_down ->
+        sl.pos := Int.min (sl.h - 1) (!(sl.pos) + 1)
+    | Key Arrow_up ->
+        sl.pos := Int.max 0 (!(sl.pos) -1)
+    | _ -> ()
 end
 
 let render_controls ctls =
@@ -148,12 +157,13 @@ let rec loop state =
   match Termbox.poll_event () with
   | Ascii c when c = '\x03' (* CTRL_C *) -> ()
   | (Ascii _ | Key _ | Utf8 _) as e ->
-      (
+      let results = (
         match Input.handle_event state.input_ctl e with
         | Some query ->
           let results = Secrets.search state.secrets query in
           (match List.length results with
-            | 0 -> Label.update state.results_ctl [|"-no results-"|]
+            | 0 ->
+                Label.update state.results_ctl [|"-no results-"|]
             | rlen ->
               let lines = Array.create rlen "" in
               let hl = Array.create rlen (Set.empty Int.comparator) in
@@ -162,9 +172,11 @@ let rec loop state =
                 hl.(i) <- summary_hl);
               Label.update state.results_ctl lines ~hl
           );
-          loop { state with results }
-        | None -> loop state
-      )
+          results
+        | None -> state.results
+      ) in
+      Slider.handle_event state.slider_ctl e;
+      loop { state with results }
   | Resize _ -> loop state
 
 
