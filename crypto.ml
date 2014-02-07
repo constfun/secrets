@@ -17,4 +17,4 @@ let with_file path ~key ~f =
     let contents = match Sys.file_exists_exn path with
     | true -> decrypt key (In_channel.read_all path)
     | false -> "" in
-    Out_channel.write_all path (encrypt key (f contents))
+    Out_channel.write_all path ~data:(encrypt key (f contents))
