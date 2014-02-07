@@ -101,6 +101,24 @@ end = struct
 end
 
 
+module Slider : sig
+  include Control
+  val create : int -> int -> t
+  val update : t -> int -> unit
+end = struct
+  type t = {
+    h : int;
+    pos : int ref;
+  }
+
+  let create h pos = { h; pos=(ref pos) }
+  let get_size sl = (1, sl.h)
+  let update sl pos = sl.pos := pos
+  let get_cell sl _ y =
+    let ch = if y = !(sl.pos) then '>' else '\x00' in
+    { ch; fg=Default; bg=Default }
+end
+
 let render_controls ctls =
   List.iter ctls ~f:(fun (module I : Control_instance) ->
     let (x, y) = I.pos in
@@ -119,6 +137,7 @@ type state = {
   secrets : Secrets.t;
   input_ctl : Input.t;
   results_ctl : Label.t;
+  slider_ctl : Slider.t;
   controls : (module Control_instance) list;
   results: qres list
 }
@@ -150,10 +169,12 @@ let start secrets =
   let winh = Termbox.height () in
   let input_ctl = Input.create ((winw - 6), 1) in
   let results_ctl = Label.create ((winw - 1), (winh - 1)) [||] in
+  let slider_ctl = Slider.create (winh - 1) (-1) in
   let controls = [
     make_control_instance (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
     make_control_instance (module Input) (6, 0) input_ctl;
-    make_control_instance (module Label) (6, 1) results_ctl
+    make_control_instance (module Label) (6, 1) results_ctl;
+    make_control_instance (module Slider) (4, 1) slider_ctl;
   ] in
-  loop { secrets; input_ctl; results_ctl; controls; results=[] };
+  loop { secrets; input_ctl; results_ctl; slider_ctl; controls; results=[] };
   Termbox.shutdown ()
