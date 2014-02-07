@@ -103,23 +103,29 @@ end
 
 module Slider : sig
   include Control
-  val create : int -> int -> t
+  val create : int -> int -> bool -> t
   val set_pos : t -> int -> unit
+  val set_visibility : t -> bool -> unit
   val handle_event : t -> event -> unit
 end = struct
   type t = {
     h : int;
     pos : int ref;
+    is_visible : bool ref;
   }
 
-  let create h pos = { h; pos=(ref pos) }
+  let create h pos is_visible = { h; pos=(ref pos); is_visible=(ref is_visible) }
   let get_size sl = (1, sl.h)
   let set_pos sl pos = sl.pos := pos
   let get_cell sl _ y =
-    let ch = if y = !(sl.pos) then '>' else '\x00' in
+    let ch = if y = !(sl.pos) && !(sl.is_visible) then '>' else '\x00' in
     { ch; fg=Default; bg=Default }
 
+  let set_visibility sl is_visible =
+    sl.is_visible := is_visible
+
   let handle_event sl e =
+    if not !(sl.is_visible) then () else
     match e with
     | Key Arrow_down ->
         sl.pos := Int.min (sl.h - 1) (!(sl.pos) + 1)
@@ -163,14 +169,16 @@ let rec loop state =
           let results = Secrets.search state.secrets query in
           (match List.length results with
             | 0 ->
-                Label.update state.results_ctl [|"-no results-"|]
+                Label.update state.results_ctl [|"-no results-"|];
+                Slider.set_visibility state.slider_ctl false
             | rlen ->
               let lines = Array.create rlen "" in
               let hl = Array.create rlen (Set.empty Int.comparator) in
               List.iteri results ~f:(fun i { summary; summary_hl; _ } ->
                 lines.(i) <- summary;
                 hl.(i) <- summary_hl);
-              Label.update state.results_ctl lines ~hl
+              Label.update state.results_ctl lines ~hl;
+              Slider.set_visibility state.slider_ctl true
           );
           results
         | None -> state.results
@@ -186,7 +194,7 @@ let start secrets =
   let winh = Termbox.height () in
   let input_ctl = Input.create ((winw - 6), 1) in
   let results_ctl = Label.create ((winw - 1), (winh - 1)) [|"-start typing to fuzzy search your secrets-"|] in
-  let slider_ctl = Slider.create (winh - 1) (-1) in
+  let slider_ctl = Slider.create (winh - 1) 0 false in
   let controls = [
     make_control_instance (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
     make_control_instance (module Input) (6, 0) input_ctl;
