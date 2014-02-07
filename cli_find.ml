@@ -148,18 +148,23 @@ let rec loop state =
   match Termbox.poll_event () with
   | Ascii c when c = '\x03' (* CTRL_C *) -> ()
   | (Ascii _ | Key _ | Utf8 _) as e ->
-      (match Input.handle_event state.input_ctl e with
-      | Some query ->
-        let results = Secrets.search state.secrets query in
-        let rlen = List.length results in
-        let lines = Array.create rlen "" in
-        let hl = Array.create rlen (Set.empty Int.comparator) in
-        List.iteri results ~f:(fun i { summary; summary_hl; _ } ->
-          lines.(i) <- summary;
-          hl.(i) <- summary_hl);
-        Label.update state.results_ctl lines ~hl;
-        loop { state with results }
-      | None -> loop state)
+      (
+        match Input.handle_event state.input_ctl e with
+        | Some query ->
+          let results = Secrets.search state.secrets query in
+          (match List.length results with
+            | 0 -> Label.update state.results_ctl [|"-no results-"|]
+            | rlen ->
+              let lines = Array.create rlen "" in
+              let hl = Array.create rlen (Set.empty Int.comparator) in
+              List.iteri results ~f:(fun i { summary; summary_hl; _ } ->
+                lines.(i) <- summary;
+                hl.(i) <- summary_hl);
+              Label.update state.results_ctl lines ~hl
+          );
+          loop { state with results }
+        | None -> loop state
+      )
   | Resize _ -> loop state
 
 
@@ -168,7 +173,7 @@ let start secrets =
   let winw = Termbox.width () in
   let winh = Termbox.height () in
   let input_ctl = Input.create ((winw - 6), 1) in
-  let results_ctl = Label.create ((winw - 1), (winh - 1)) [||] in
+  let results_ctl = Label.create ((winw - 1), (winh - 1)) [|"-start typing to fuzzy search your secrets-"|] in
   let slider_ctl = Slider.create (winh - 1) (-1) in
   let controls = [
     make_control_instance (module Label) (0, 0) (Label.create (6, 1) [|"find: "|]);
