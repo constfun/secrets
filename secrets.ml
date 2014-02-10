@@ -40,6 +40,7 @@ end = struct
       List.fold (Entry.payload e) ~init:acc ~f:(fun acc (k, v) -> (prefix ^ k, v) :: acc)
     ) in
     let rs = String.concat_map query ~sep:".*?" ~f:(fun c -> "(" ^ String.of_char c ^ ")") in
+    let rs = "(?i)" ^ rs in
     let r = Regex.create_exn rs in
     List.filter_map search_space ~f:(fun (summary, value) ->
       match Regex.get_matches ~max:1 r summary with
