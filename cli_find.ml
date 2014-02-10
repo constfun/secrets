@@ -32,10 +32,10 @@ let string_cells s (x, y) _ =
 let handle_input e text =
   match e with
   | Ascii c when Char.is_print c || c = ' ' ->
-      text ^ (Char.to_string c)
+      Some (text ^ (Char.to_string c))
   | Ascii c when c = '\x7F' (* backspace *) ->
-      String.drop_suffix text 1
-  | _ -> text
+      Some (String.drop_suffix text 1)
+  | _ -> None
 
 let results_cells r hl (x, y) (w, h) =
   let blank = ('\x00', Default) in
@@ -84,10 +84,13 @@ let rec loop state =
   let state = match Termbox.poll_event () with
     | Ascii c when c = '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ | Utf8 _) as e ->
-        let query = handle_input e state.query in
-        let (results, results_hl) = search state.secrets query in
-        let selection = slider_input e state.selection (Int.min (Array.length results) sliderh) in
-        Some { state with query; results; results_hl; selection }
+        (match handle_input e state.query with
+        | Some query ->
+            let (results, results_hl) = search state.secrets query in
+            Some { state with query; results; results_hl; selection=0 }
+        | None ->
+            let selection = slider_input e state.selection (Int.min (Array.length state.results) sliderh) in
+            Some { state with selection })
     | Resize _ -> Some state
   in
   match state with
