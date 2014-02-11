@@ -3,6 +3,10 @@ open Core_extended.Std
 open Secrets
 open Termbox
 
+type io_format =
+  | Tsv
+  | Sec
+
 let rc_path = Filename.expand "~/.secrets"
 let rc_key_path = Filename.implode [rc_path; "key"]
 let rc_sec_path = Filename.implode [rc_path; "default"]
@@ -19,7 +23,7 @@ let filename ~should_exist =
       exit 1
     )
 
-let with_secrets_file key_path sec_path ~f =
+let with_secrets_file ~key_path ~sec_path ~f =
   let key = Crypto.create key_path in
   Crypto.with_file sec_path ~key:key ~f:(fun s ->
     let sec = match String.length s with
@@ -30,11 +34,11 @@ let with_secrets_file key_path sec_path ~f =
 
 let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
-  with_secrets_file key_path sec_path ~f:Fn.id;
+  with_secrets_file ~key_path ~sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path)
   then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
-let import = with_secrets_file ~f:(fun _ ->
+let import ~fmt = with_secrets_file ~f:(fun _ ->
   Secrets.of_string (In_channel.input_all stdin))
 
 let export = with_secrets_file ~f:(fun sec ->
@@ -68,9 +72,13 @@ let find = with_secrets_file ~f:(fun sec ->
   sec
   )
 
-let with_defaults f =
+let with_defaults ~f =
   let sec_path = Filename.realpath rc_sec_path in
-  f rc_key_path sec_path
+  f ~key_path:rc_key_path ~sec_path:rc_sec_path
+
+let io_format =
+  let map = String.Map.of_alist_exn ["tsv", Tsv; "sec", Sec;] in
+  Command.Spec.Arg_type.of_map map
 
 let () =
   let open Command in
@@ -78,25 +86,25 @@ let () =
     Spec.(empty +> anon ("path" %: filename ~should_exist:false))
     (fun sec_path () -> init rc_key_path sec_path)
   in
-  let import_cmd = basic ~summary:"Import secrets from an s-expression."
-    Spec.empty
-    (fun () -> with_defaults import)
+  let import_cmd = basic ~summary:"Import secrets from stdin."
+    Spec.(empty +> flag "-fmt" (optional_with_default Sec io_format) ~doc:"<tsv,sec> Input format to expect.")
+    (fun fmt () -> with_defaults ~f:(import ~fmt))
   in
-  let export_cmd = basic ~summary:"Export secrets to an s-expression."
+  let export_cmd = basic ~summary:"Export secrets to stdin."
     Spec.empty
-    (fun () -> with_defaults export)
+    (fun () -> with_defaults ~f:export)
   in
   let add_cmd = basic ~summary:"Add a new secret using $EDITOR."
     Spec.empty
-    (fun () -> with_defaults add)
+    (fun () -> with_defaults ~f:add)
   in
   let edit_cmd = basic ~summary:"Edit all secrets using $EDITOR."
     Spec.empty
-    (fun () -> with_defaults edit)
+    (fun () -> with_defaults ~f:edit)
   in
   let find_cmd = basic ~summary:"Start fuzzy search."
     Spec.empty
-    (fun () -> with_defaults find)
+    (fun () -> with_defaults ~f:find)
   in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
