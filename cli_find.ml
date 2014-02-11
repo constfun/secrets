@@ -30,13 +30,18 @@ let string_cells s (x, y) _ =
   let ch = if x < len && y = 0 then String.get s x else '\x00' in
   { ch; fg=Default; bg=Default }
 
-let handle_input e text =
-  match e with
+let handle_input e text (x, y) =
+  let new_text = match e with
   | Ascii c when Char.is_print c || c = ' ' ->
       Some (text ^ (Char.to_string c))
   | Ascii c when c = '\x7F' (* backspace *) ->
       Some (String.drop_suffix text 1)
-  | _ -> None
+  | _ -> None in
+  match new_text with
+  | Some t ->
+      Termbox.set_cursor (x + (String.length t)) y;
+      new_text
+  | None -> new_text
 
 let results_cells r hl (x, y) (w, h) =
   let blank = ('\x00', Default) in
@@ -86,15 +91,16 @@ let rec loop state =
   let winw = Termbox.width () in
   let winh = Termbox.height () in
   let sliderh = winh - 1 in
+  let input_pos = (6, 0) in
   render_cells ~pos:(0, 0) ~size:(6, 1) ~f:(string_cells "find: ");
-  render_cells ~pos:(6, 0) ~size:((winw-6), 1) ~f:(string_cells state.query);
+  render_cells ~pos:input_pos ~size:((winw-6), 1) ~f:(string_cells state.query);
   render_cells ~pos:(6, 1) ~size:((winw-6), (winh-1)) ~f:(results_cells state.summary state.summary_hl);
   render_cells ~pos:(0, 1) ~size:(5, sliderh) ~f:(slider_cells (List.length state.results) state.selection);
   Termbox.present ();
   let state = match Termbox.poll_event () with
     | Ascii c when c = '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ ) as e ->
-        (match handle_input e state.query with
+        (match handle_input e state.query input_pos with
         | Some query ->
             let (results, summary, summary_hl) = search state.secrets query in
             Some { state with query; results; summary; summary_hl; selection=0 }
