@@ -49,7 +49,7 @@ let import ~fmt = with_secrets_file ~f:(fun _ ->
             match In_channel.input_line stdin with
             | Some l ->
                 (match String.split l ~on:'\t' with
-                | title :: payload_keys -> payload_keys
+                | _ :: payload_keys -> payload_keys
                 | [] -> raise Invalid_format )
             | None -> raise Invalid_format in
           In_channel.fold_lines stdin ~init:Secrets.empty ~f:(fun sec l ->
@@ -105,7 +105,7 @@ let find = with_secrets_file ~f:(fun sec ->
 
 let with_defaults ~f =
   let sec_path = Filename.realpath rc_sec_path in
-  f ~key_path:rc_key_path ~sec_path:rc_sec_path
+  f ~key_path:rc_key_path ~sec_path
 
 let io_format =
   let map = String.Map.of_alist_exn ["tsv", Tsv; "sec", Sec;] in

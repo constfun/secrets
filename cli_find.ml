@@ -43,7 +43,7 @@ let handle_input e text (x, y) =
       new_text
   | None -> new_text
 
-let results_cells r hl (x, y) (w, h) =
+let results_cells r hl (x, y) _ =
   let blank = ('\x00', Default) in
   let ch, fg = (
     if y >= (Array.length r) then blank else
@@ -62,12 +62,13 @@ let search secrets query =
   let len = List.length results in
   let lines = Array.create ~len "" in
   let hl = Array.create ~len (Set.empty ~comparator:Int.comparator) in
-  List.iteri results ~f:(fun i { summary; summary_hl; value } ->
+  List.iteri results ~f:(fun i { summary; summary_hl; value=_ } ->
     lines.(i) <- summary;
-    hl.(i) <- summary_hl);
-    (results, lines, hl)
+    hl.(i) <- summary_hl
+  );
+  (results, lines, hl)
 
-let slider_cells len sel (x, y) (w, h) =
+let slider_cells len sel (x, y) (w, _) =
   let ch = if y = sel && x = (w-1) && len > 0 then '>' else '\x00' in
   { ch; fg=Default; bg=Default }
 

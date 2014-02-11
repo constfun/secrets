@@ -14,16 +14,15 @@ let print_position lexbuf =
   let line = String.slice buf sp.pos_bol (cp.pos_cnum-1) in
   let lnum = Int.to_string cp.pos_lnum in
   Console.Ansi.eprintf [`Dim] "%s " lnum;
-  let carot_offset = (String.length line) + (String.length lnum) + 1 in
   fprintf stderr "%s" line;
   Console.Ansi.eprintf [`Red] " \204\173\n"
 
 let parse s =
   let lexbuf = Lexing.from_string s in
   try Parser.prog Lexer.read lexbuf with
-  | SyntaxError msg as e ->
+  | SyntaxError _ ->
     print_position lexbuf;
     raise Error
-  | Parser.Error as e ->
+  | Parser.Error ->
     print_position lexbuf;
     raise Error
