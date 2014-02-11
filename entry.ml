@@ -22,7 +22,7 @@ end = struct
       add_char buff '\n';
       List.iter e.payload ~f:(fun (k, v) ->
         add_string buff k;
-        add_char buff ':';
+        add_string buff ": ";
         add_string buff v;
         add_char buff '\n'
       );

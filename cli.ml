@@ -1,11 +1,14 @@
 open Core.Std
 open Core_extended.Std
 open Secrets
+open Entry
 open Termbox
 
 type io_format =
   | Tsv
   | Sec
+
+exception Invalid_format
 
 let rc_path = Filename.expand "~/.secrets"
 let rc_key_path = Filename.implode [rc_path; "key"]
@@ -27,7 +30,7 @@ let with_secrets_file ~key_path ~sec_path ~f =
   let key = Crypto.create key_path in
   Crypto.with_file sec_path ~key:key ~f:(fun s ->
     let sec = match String.length s with
-    | 0 -> Secrets.create ()
+    | 0 -> Secrets.empty
     | _ -> Secrets.of_string s in
     Secrets.to_string (f sec)
   )
@@ -39,7 +42,25 @@ let init key_path sec_path =
   then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import ~fmt = with_secrets_file ~f:(fun _ ->
-  Secrets.of_string (In_channel.input_all stdin))
+  try (match fmt with
+      | Sec -> Secrets.of_string (In_channel.input_all stdin)
+      | Tsv ->
+          let payload_keys =
+            match In_channel.input_line stdin with
+            | Some l ->
+                (match String.split l ~on:'\t' with
+                | title :: payload_keys -> payload_keys
+                | [] -> raise Invalid_format )
+            | None -> raise Invalid_format in
+          In_channel.fold_lines stdin ~init:Secrets.empty ~f:(fun sec l ->
+            match String.split l ~on:'\t' with
+            | title :: payload_values ->
+                let payload = List.zip_exn payload_keys payload_values in
+                let entry = Entry.create title payload in
+                Secrets.add sec entry
+            | [] -> raise Invalid_format))
+  with Invalid_format -> eprintf "Invalid format."; exit 1
+  )
 
 let export = with_secrets_file ~f:(fun sec ->
   Out_channel.output_string stdout (Secrets.to_string sec);

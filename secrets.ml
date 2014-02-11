@@ -12,24 +12,22 @@ type qres = {
 }
 
 module Secrets : sig
-  type entry
   type t
 
   include Stringable with type t := t
 
-  val create : unit -> t
   (*val parse : string -> t option*)
+  val empty : t
 
   (* XXX: Should Container.Make *)
-  val add : t -> entry -> t
+  val add : t -> Entry.t -> t
   val append : t -> t -> t
 
   val search : t -> string -> qres list
 end = struct
-  type entry = Entry.t
-  type t = entry list
+  type t = Entry.t list
 
-  let create () = []
+  let empty = []
 
   let add sec entry = entry :: sec
   let append = List.append
@@ -70,5 +68,4 @@ end = struct
       );
       contents buff
     )
-
 end
