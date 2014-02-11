@@ -121,5 +121,8 @@ let rec loop state =
 
 let start secrets =
   ignore (Termbox.init ());
-  loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] };
-  Termbox.shutdown ()
+  (try loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] } with
+  | _ as e ->
+      Termbox.shutdown ();
+      raise e);
+  Termbox.shutdown ();
