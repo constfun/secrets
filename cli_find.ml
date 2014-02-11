@@ -32,7 +32,7 @@ let string_cells s (x, y) _ =
 
 let handle_input e text (x, y) =
   let new_text = match e with
-  | Ascii c when Char.is_print c || c = ' ' ->
+  | Ascii c when Char.is_alphanum c || c = ' ' ->
       Some (text ^ (Char.to_string c))
   | Ascii c when c = '\x7F' (* backspace *) ->
       Some (String.drop_suffix text 1)
