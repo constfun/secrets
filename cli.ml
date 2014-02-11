@@ -67,7 +67,7 @@ let export = with_secrets_file ~f:(fun sec ->
   sec
   )
 
-let edit_and_parse ?init_contents () =
+let rec edit_and_parse ?init_contents () =
   let write_fn = match init_contents with
   | Some init_contents -> (fun oc -> Out_channel.output_string oc init_contents)
   | None -> ignore in
@@ -76,7 +76,17 @@ let edit_and_parse ?init_contents () =
     | Some e -> e
     | None -> "vim" in
     ignore (Unix.system (sprintf "%s '%s'" editor fname));
-    Secrets.of_string (In_channel.read_all fname)
+    let fcontents = In_channel.read_all fname in
+    try Secrets.of_string fcontents with
+    | Secrets_parser.Error ->
+        let rec ask = (fun () ->
+          printf "Parsing error. (e)dit or (a)bort? %!";
+          match Scanf.scanf "%c\n" Fn.id with
+          | 'a' -> Secrets.empty
+          | 'e' -> edit_and_parse ~init_contents:fcontents ()
+          | _ -> ask ()
+        ) in
+        ask ()
     )
 
 let add = with_secrets_file ~f:(fun sec ->

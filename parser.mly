@@ -4,6 +4,7 @@
 %token EOF
 %start <Entry.Entry.t list> prog
 %%
+
 prog:
   NEWLINE*; sec = separated_list(entry_separator, entry); EOF { sec }
 entry_separator:
