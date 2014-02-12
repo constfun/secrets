@@ -83,11 +83,6 @@ let slider_input e sel h =
   | Key Arrow_up -> Update (Int.max 0 (sel - 1))
   | _ -> Update sel
 
-let pbcopy s =
-  let po = Unix.open_process_out "pbcopy" in
-  Out_channel.output_string po s;
-  ignore (Unix.close_process_out po)
-
 let rec loop state =
   let winw = Termbox.width () in
   let winh = Termbox.height () in
@@ -109,7 +104,7 @@ let rec loop state =
             (match slider_input e state.selection (Int.min (List.length state.results) sliderh) with
             | Update selection -> Some { state with selection }
             | Select selection ->
-                pbcopy (List.nth_exn state.results selection).value;
+                Utils.pbcopy (List.nth_exn state.results selection).value;
                 None
             )
         )

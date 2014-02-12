@@ -114,6 +114,7 @@ let rand ?(field="password") ?(len=20) ~alphanum ~title = with_secrets_file ~f:(
     let rand_val = rand_str ~len ~alphanum in
     let payload = [(field, rand_val)] in
     let e = Entry.create title payload in
+    Utils.pbcopy rand_val;
     Secrets.add sec e
   )
 
