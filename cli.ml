@@ -98,6 +98,25 @@ let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
   )
 
+let rec rand_char ~alphanum =
+  let c = Char.of_int_exn (33 + Random.int 94) in
+  if not alphanum then c else
+  match c with
+  | c when Char.is_alphanum c -> c
+  | _ -> rand_char ~alphanum
+
+
+let rand_str ~len ~alphanum =
+  Random.self_init ();
+  String.init len ~f:(fun _ -> rand_char ~alphanum)
+
+let rand ?(field="password") ?(len=20) ~alphanum ~title = with_secrets_file ~f:(fun sec ->
+    let rand_val = rand_str ~len ~alphanum in
+    let payload = [(field, rand_val)] in
+    let e = Entry.create title payload in
+    Secrets.add sec e
+  )
+
 let find = with_secrets_file ~f:(fun sec ->
   Cli_find.start sec;
   sec
@@ -129,6 +148,22 @@ let () =
     Spec.empty
     (fun () -> with_defaults ~f:add)
   in
+  let rand_cmd = basic ~summary:"Add a new secret with a random password."
+    Spec.(
+      empty
+      +> flag "-F" (optional_with_default "password" string) ~doc:"field-name Name to use for the random field. Default: password"
+      +> flag "-l" (optional_with_default 20 int) ~doc:"length Length of the random value. Default: 20"
+      +> flag "-s" no_arg ~doc:" Create a simple, alpha-numeric value. Default: false"
+      +> anon ("title" %: string)
+      )
+    (fun field len alphanum title () ->
+      match title with
+      | "" ->
+          eprintf "Title cannot be empty.\n";
+          exit 1
+      | title ->
+          with_defaults ~f:(rand ~field ~len ~alphanum ~title))
+  in
   let edit_cmd = basic ~summary:"Edit all secrets using $EDITOR."
     Spec.empty
     (fun () -> with_defaults ~f:edit)
@@ -141,6 +176,7 @@ let () =
     (group ~summary:"Manage encrypted secrets." [
       "init", init_cmd;
       "add", add_cmd;
+      "rand", rand_cmd;
       "edit", edit_cmd;
       "find", find_cmd;
       "import", import_cmd;
