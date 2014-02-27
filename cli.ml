@@ -118,8 +118,8 @@ let rand ?(field="password") ?(len=20) ~alphanum ~title = with_secrets_file ~f:(
     Secrets.add sec e
   )
 
-let find = with_secrets_file ~f:(fun sec ->
-  Cli_find.start sec;
+let find ~query = with_secrets_file ~f:(fun sec ->
+  Cli_find.start sec query;
   sec
   )
 
@@ -170,8 +170,11 @@ let () =
     (fun () -> with_defaults ~f:edit)
   in
   let find_cmd = basic ~summary:"Start fuzzy search."
-    Spec.empty
-    (fun () -> with_defaults ~f:find)
+    Spec.(
+      empty
+      +> anon (maybe ("query" %: string))
+    )
+    (fun query () -> with_defaults ~f:(find ~query))
   in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets." [
