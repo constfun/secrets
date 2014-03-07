@@ -72,10 +72,14 @@ type slider_action =
   | Select of int
 
 let slider_input e sel h =
+  let move_sel_down = Update (Int.min (h - 1) (sel + 1)) in
+  let move_sel_up = Update (Int.max 0 (sel - 1)) in
   match e with
   | Ascii c when c = '\x0D' (* ENTER *) -> Select sel
-  | Key Arrow_down -> Update (Int.min (h - 1) (sel + 1))
-  | Key Arrow_up -> Update (Int.max 0 (sel - 1))
+  | Key Arrow_down -> move_sel_down
+  | Ascii c when c = '\x0A' -> move_sel_down
+  | Key Arrow_up -> move_sel_up
+  | Ascii c when c = '\x0B' -> move_sel_up
   | _ -> Update sel
 
 let rec loop state =
@@ -92,8 +96,7 @@ let rec loop state =
   let state = match Termbox.poll_event () with
     | Ascii c when c = '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ ) as e ->
-        (match handle_input e state.query with
-        | Some query ->
+        (match handle_input e state.query with | Some query ->
             let (results, summary, summary_hl) = search state.secrets query in
             Some { state with query; results; summary; summary_hl; selection=0 }
         | None ->
