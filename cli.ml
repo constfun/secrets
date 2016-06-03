@@ -39,7 +39,7 @@ let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
   with_secrets_file ~key_path ~sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path)
-  then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
+  then Unix.symlink ~to_dir:false ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import ~fmt = with_secrets_file ~f:(fun _ ->
   try (match fmt with
