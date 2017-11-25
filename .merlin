@@ -1,3 +1,0 @@
-S .
-B _build
-PKG core core_extended re2 termbox nacl extunix

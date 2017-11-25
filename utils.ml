@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open ExtUnix.Specific
 open ExtUnix.Specific.Uname
 

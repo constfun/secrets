@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Core_extended.Std
 open Secrets
 open Entry
@@ -39,20 +39,20 @@ let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
   with_secrets_file ~key_path ~sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path)
-  then Unix.symlink ~to_dir:false ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
+  then Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import ~fmt = with_secrets_file ~f:(fun _ ->
   try (match fmt with
-      | Sec -> Secrets.of_string (In_channel.input_all stdin)
+      | Sec -> Secrets.of_string (In_channel.input_all In_channel.stdin)
       | Tsv ->
           let payload_keys =
-            match In_channel.input_line stdin with
+            match In_channel.input_line In_channel.stdin with
             | Some l ->
                 (match String.split l ~on:'\t' with
                 | _ :: payload_keys -> payload_keys
                 | [] -> raise Invalid_format )
             | None -> raise Invalid_format in
-          In_channel.fold_lines stdin ~init:Secrets.empty ~f:(fun sec l ->
+          In_channel.fold_lines In_channel.stdin ~init:Secrets.empty ~f:(fun sec l ->
             match String.split l ~on:'\t' with
             | title :: payload_values ->
                 let payload = List.zip_exn payload_keys payload_values in

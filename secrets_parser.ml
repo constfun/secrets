@@ -1,5 +1,3 @@
-open Core.Std
-
 open Parser
 open Lexer
 open Lexing
@@ -8,7 +6,8 @@ open Textutils
 exception Error
 
 let print_position lexbuf =
-  let buf = lexbuf.lex_buffer in
+  let buf = Bytes.to_string lexbuf.lex_buffer in
+  let open Core in
   let sp = lexbuf.lex_start_p in
   let cp = lexbuf.lex_curr_p in
   let line = String.slice buf sp.pos_bol (cp.pos_cnum-1) in

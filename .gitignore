@@ -1,16 +1,5 @@
 .DS_Store
 
-# Suggested by GitHub
-*.annot
-*.cmo
-*.cma
-*.cmi
-*.a
-*.o
-*.cmx
-*.cmxs
-*.cmxa
-
+.merlin
+*.install
 _build/
-*.native
-*.byte
