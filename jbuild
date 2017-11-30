@@ -2,7 +2,7 @@
 
 (executable
  ((name cli)
-  (libraries (core_extended re2 termbox nacl extunix notty notty.unix))
+  (libraries (core_extended re2 termbox nacl extunix notty notty.unix incremental))
  ))
 
 (menhir ((modules (parser))))

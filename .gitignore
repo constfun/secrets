@@ -3,3 +3,7 @@
 .merlin
 *.install
 _build/
+
+/nacl
+/termbox
+/cli

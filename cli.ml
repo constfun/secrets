@@ -94,10 +94,38 @@ let rec edit_and_parse ?init_contents () =
 (*     Secrets.append sec new_entries *)
 (*   ) *)
 
+
+type state = {
+  title: string;
+}
+
+open Incremental_lib
+
+module Inc : Incremental.S = Incremental.Make ()
+
 let add ~key_path ~sec_path =
   let open Notty in
-  let img = I.uchars A.(fg red) (Array.init 80 (fun _ -> Uchar.of_int 0x2593)) in
-  Notty_unix.output_image img
+  let open Notty_unix in
+  let st = { title="" } in
+  let text_v = Inc.Var.create st.title in
+  let term = Term.create () in
+  let view = Inc.map (Inc.Var.watch text_v) (fun titl ->
+    I.string A.(fg red) titl
+  ) in
+  let view_o = Inc.observe view in
+  let rec loop () =
+    Inc.stabilize ();
+    Term.image term (Inc.Observer.value_exn view_o);
+    match Term.event term with
+    | `Key (`ASCII c, []) ->
+        Inc.Var.set text_v (st.title ^ (Char.to_string c));
+        loop ()
+    | _ -> Term.refresh term
+  in
+  loop ()
+  (* let img = I.uchars A.(fg red) (Array.init 80 (fun _ -> Uchar.of_int 0x2593)) in *)
+  (* Notty_unix.output_image img *)
+
 
 let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
