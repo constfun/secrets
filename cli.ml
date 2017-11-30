@@ -89,10 +89,15 @@ let rec edit_and_parse ?init_contents () =
         ask ()
     )
 
-let add = with_secrets_file ~f:(fun sec ->
-    let new_entries = edit_and_parse () in
-    Secrets.append sec new_entries
-  )
+(* let add = with_secrets_file ~f:(fun sec -> *)
+(*     let new_entries = edit_and_parse () in *)
+(*     Secrets.append sec new_entries *)
+(*   ) *)
+
+let add ~key_path ~sec_path =
+  let open Notty in
+  let img = I.uchars A.(fg red) (Array.init 80 (fun _ -> Uchar.of_int 0x2593)) in
+  Notty_unix.output_image img
 
 let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
