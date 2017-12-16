@@ -93,39 +93,56 @@ let rec edit_and_parse ?init_contents () =
 (*     let new_entries = edit_and_parse () in *)
 (*     Secrets.append sec new_entries *)
 (*   ) *)
-
-
-type state = {
-  title: string;
-}
-
 open Incremental_lib
 
-module Inc : Incremental.S = Incremental.Make ()
 
-let add ~key_path ~sec_path =
-  let open Notty in
-  let open Notty_unix in
-  let st = { title="" } in
-  let text_v = Inc.Var.create st.title in
-  let term = Term.create () in
-  let view = Inc.map (Inc.Var.watch text_v) (fun titl ->
-    I.string A.(fg red) titl
-  ) in
-  let view_o = Inc.observe view in
-  let rec loop () =
-    Inc.stabilize ();
-    Term.image term (Inc.Observer.value_exn view_o);
-    match Term.event term with
-    | `Key (`ASCII c, []) ->
-        Inc.Var.set text_v (st.title ^ (Char.to_string c));
-        loop ()
-    | _ -> Term.refresh term
-  in
-  loop ()
+module AddView = struct
+  module Inc = Incremental.Make ()
+  open Inc
+
+  type t = {
+    title: string Var.t;
+    (* focused: ('a Var.t -> Notty *)
+  }
+
+  let create () = {
+    title = Var.create ""
+  }
+
   (* let img = I.uchars A.(fg red) (Array.init 80 (fun _ -> Uchar.of_int 0x2593)) in *)
   (* Notty_unix.output_image img *)
 
+  (* let edit_str_mutation var = function *)
+  (*   | `Key (`ASCII c, []) -> Var.set var ((Var.value var) ^ (Char.to_string c)) *)
+  (*   | _ -> () *)
+
+  let process_input t term =
+    let open Notty_unix in
+    match Term.event term with
+      | `Key (`ASCII c, []) -> Var.set t.title ((Var.value t.title) ^ (Char.to_string c))
+      | _ -> Term.refresh term
+
+  let init t term =
+    let open Notty in
+    let open Notty_unix in
+    let view = map (Var.watch t.title) (fun titl ->
+      I.string A.(fg red) titl
+    ) in
+    let view_o = observe view in
+    let rec loop () =
+      stabilize ();
+      Term.image term (Observer.value_exn view_o);
+      process_input t term
+    in
+    loop ()
+end
+
+let add = with_secrets_file ~f:(fun sec ->
+    let term = Notty_unix.Term.create () in
+    let view = AddView.create () in
+    AddView.init view term;
+    sec
+  )
 
 let edit = with_secrets_file ~f:(fun sec ->
     edit_and_parse ~init_contents:(Secrets.to_string sec) ()
