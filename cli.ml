@@ -116,11 +116,15 @@ module AddView = struct
   (*   | `Key (`ASCII c, []) -> Var.set var ((Var.value var) ^ (Char.to_string c)) *)
   (*   | _ -> () *)
 
+  type ret = Exit | Continue
+
   let process_input t term =
     let open Notty_unix in
+    let skip () = Term.refresh term; Continue in
     match Term.event term with
-      | `Key (`ASCII c, []) -> Var.set t.title ((Var.value t.title) ^ (Char.to_string c))
-      | _ -> Term.refresh term
+      | `Key (`ASCII 'q', `Ctrl :: []) -> Exit
+      | `Key (`ASCII c, []) -> Var.set t.title ((Var.value t.title) ^ (Char.to_string c)); Continue
+      | _ -> skip ()
 
   let init t term =
     let open Notty in
@@ -132,7 +136,9 @@ module AddView = struct
     let rec loop () =
       stabilize ();
       Term.image term (Observer.value_exn view_o);
-      process_input t term
+      match process_input t term with
+      | Exit -> ()
+      | Continue -> loop ()
     in
     loop ()
 end
