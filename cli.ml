@@ -169,7 +169,7 @@ let add = with_secrets_file ~f:(fun sec ->
     (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
     ignore(GMain.init());
 
-    let w = GWindow.window ~title:"esns" ~width:500 ~height:400 () in
+    let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in
     ignore(w#connect#destroy GMain.quit);
 
     let d = GMisc.drawing_area ~packing:w#add () in
