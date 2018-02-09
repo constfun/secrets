@@ -1,0 +1,7 @@
+(jbuild_version 1)
+
+(library
+ ((name cassowary)
+  (libraries (ctypes.foreign))
+  (c_names (amoeba))
+  (c_flags (-pedantic -std=c89 -DAM_IMPLEMENTATION))))

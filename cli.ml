@@ -166,17 +166,26 @@ let add = with_secrets_file ~f:(fun sec ->
       draw cr (float allocation.Gtk.width) (float allocation.Gtk.height);
       true in
 
+    let open Cassowary in
+    let open Ctypes in
+    let solver = newsolver null null in
+    let xl = newvariable solver  in
+    let xm = newvariable solver  in
+    let xr = newvariable solver  in
+    Out_channel.output_string stdout ("Hello" ^ (Int.to_string (variableid xm)));
+
+
     (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
-    ignore(GMain.init());
+    (* ignore(GMain.init()); *)
 
-    let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in
-    ignore(w#connect#destroy GMain.quit);
+    (* let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in *)
+    (* ignore(w#connect#destroy GMain.quit); *)
 
-    let d = GMisc.drawing_area ~packing:w#add () in
-    ignore(d#event#connect#expose (expose d));
+    (* let d = GMisc.drawing_area ~packing:w#add () in *)
+    (* ignore(d#event#connect#expose (expose d)); *)
 
-    w#show();
-    GMain.main();
+    (* w#show(); *)
+    (* GMain.main(); *)
 
     (* let term = Notty_unix.Term.create () in *)
     (* let view = AddView.create () in *)

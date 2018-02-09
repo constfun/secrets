@@ -2,7 +2,8 @@
 
 (executable
  ((name cli)
-  (libraries (core_extended re2 termbox nacl extunix notty notty.unix incremental lablgtk2 cairo2 cairo2.lablgtk2))
+  (libraries (core_extended re2 termbox nacl extunix notty notty.unix incremental lablgtk2 cairo2 cairo2.lablgtk2 cassowary))
+  (link_flags (-linkall))
  ))
 
 (menhir ((modules (parser))))
