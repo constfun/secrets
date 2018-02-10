@@ -172,7 +172,7 @@ let add = with_secrets_file ~f:(fun sec ->
     let xl = newvariable solver  in
     let xm = newvariable solver  in
     let xr = newvariable solver  in
-    Out_channel.output_string stdout ("Hello" ^ (Int.to_string (variableid xm)));
+    dumpsolver solver;
 
 
     (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)

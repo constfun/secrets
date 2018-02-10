@@ -12,3 +12,5 @@ let variable : variable typ = ptr void
 let newvariable = foreign "am_newvariable" (solver @-> returning variable)
 
 let variableid = foreign "am_variableid" (variable @-> returning int)
+
+let dumpsolver = foreign "am_dumpsolver" (solver @-> returning void)

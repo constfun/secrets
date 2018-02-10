@@ -105,6 +105,8 @@ AM_API int am_setstrength (am_Constraint *cons, am_Float strength);
 
 AM_API int am_mergeconstraint (am_Constraint *cons, am_Constraint *other, am_Float multiplier);
 
+AM_API void am_dumpsolver(am_Solver *solver);
+
 AM_NS_END
 
 
@@ -119,6 +121,7 @@ AM_NS_END
 #include <float.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #define AM_EXTERNAL     (0)
 #define AM_SLACK        (1)
@@ -1033,6 +1036,47 @@ AM_API void am_suggest(am_Variable *var, am_Float value) {
     am_delta_edit_constant(solver, delta, var->constraint);
     am_dual_optimize(solver);
     if (solver->auto_update) am_updatevars(solver);
+}
+
+AM_API void am_dumpkey(am_Symbol sym) {
+    int ch = 'v';
+    switch (sym.type) {
+    case AM_EXTERNAL: ch = 'v'; break;
+    case AM_SLACK:    ch = 's'; break;
+    case AM_ERROR:    ch = 'e'; break;
+    case AM_DUMMY:    ch = 'd'; break;
+    }
+    printf("%c%d", ch, (int)sym.id);
+}
+
+AM_API void am_dumprow(am_Row *row) {
+    am_Term *term = NULL;
+    printf("%g", row->constant);
+    while (am_nextentry(&row->terms, (am_Entry**)&term)) {
+        am_Float multiplier = term->multiplier;
+        printf(" %c ", multiplier > 0.0 ? '+' : '-');
+        if (multiplier < 0.0) multiplier = -multiplier;
+        if (!am_approx(multiplier, 1.0f))
+            printf("%g*", multiplier);
+        am_dumpkey(am_key(term));
+    }
+    printf("\n");
+}
+
+AM_API void am_dumpsolver(am_Solver *solver) {
+    am_Row *row = NULL;
+    int idx = 0;
+    printf("-------------------------------\n");
+    printf("solver: ");
+    am_dumprow(&solver->objective);
+    printf("rows(%d):\n", (int)solver->rows.count);
+    while (am_nextentry(&solver->rows, (am_Entry**)&row)) {
+        printf("%d. ", ++idx);
+        am_dumpkey(am_key(row));
+        printf(" = ");
+        am_dumprow(row);
+    }
+    printf("-------------------------------\n");
 }
 
 AM_NS_END
