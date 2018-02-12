@@ -1,0 +1,24 @@
+(jbuild_version 1)
+
+ (library
+ ((name yoga)
+  (libraries (ctypes ctypes.foreign))
+  (preprocess no_preprocessing)
+  (self_build_stubs_archive (yoga))))
+
+(rule
+  ((targets (libyoga_stubs.a dllyoga_stubs.so))
+   (deps ((files_recursively_in yoga_c)))
+   (action (bash "
+ARFLAGS=rsc
+CXX=g++
+if ! ${ARCH_SIXTYFOUR}; then
+  CXX=\"$CXX -m32\"
+fi
+cd yoga_c
+$CXX -c -fno-omit-frame-pointer -fexceptions -Wall -Werror -O3 -fPIC -std=c++1y *.cpp
+$CXX --shared -o dllyoga_stubs.so *.o
+ar rsc libyoga_stubs.a *.o
+cp dllyoga_stubs.so ..
+cp libyoga_stubs.a ..
+"))))

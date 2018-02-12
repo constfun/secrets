@@ -191,6 +191,14 @@ let add = with_secrets_file ~f:(fun sec ->
     ignore (add c2);
     dumpsolver s;
 
+    let open Yoga in
+    let node = node_new () in
+    node_style_set_width node 42.0;
+    let width_yg_val = node_style_get_width node in
+    let width = getf width_yg_val yg_val_value in
+    print_endline ("Node width: " ^ (Float.to_string width));
+    node_print node Style;
+
 
     (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
     (* ignore(GMain.init()); *)
