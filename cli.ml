@@ -143,78 +143,77 @@ module AddView = struct
     loop ()
 end
 
+let cassowary () =
+  let open Cassowary in
+  let open Ctypes in
+  (* let printr = Result.(function *)
+  (*   | Ok -> print_endline "Ok." *)
+  (*   | Failed -> print_endline "Failed." *)
+  (*   | Unsatisfied -> print_endline "Unsatisfied." *)
+  (*   | Unbound -> print_endline "Unbound." *)
+  (* ) in *)
+  let s = newsolver null null in
+  let xl = newvariable s in
+  (* let xm = newvariable s in *)
+  (* let xr = newvariable s in *)
+  let c1 = newconstraint s Strength.Required in
+  ignore (addterm c1 xl 1.0);
+  ignore (setrelation c1 Relation.Greatequal);
+  ignore (add c1);
+  dumpsolver s;
+  let c2 = newconstraint s Strength.Required in
+  ignore (addterm c2 xl 1.0);
+  ignore (setrelation c2 Relation.Equal);
+  ignore (add c2);
+  dumpsolver s
+
+let yoga () =
+  let open Ctypes in
+  let open Yoga in
+  let node = node_new () in
+  node_style_set_width node 42.0;
+  let width_yg_val = node_style_get_width node in
+  let width = getf width_yg_val yg_val_value in
+  print_endline ("Node width: " ^ (Float.to_string width));
+  node_print node Style
+
+
+let cairo () =
+  let open Cairo in
+  let pi2 = 8. *. Float.atan 1. in
+  let draw cr width height =
+    let r = 0.25 *. width in
+    set_source_rgba cr 0. 1. 0. 0.5;
+    arc cr (0.5 *. width) (0.35 *. height) r 0. pi2;
+    fill cr;
+    set_source_rgba cr 1. 0. 0. 0.5;
+    arc cr (0.35 *. width) (0.65 *. height) r 0. pi2;
+    fill cr;
+    set_source_rgba cr 0. 0. 1. 0.5;
+    arc cr (0.65 *. width) (0.65 *. height) r 0. pi2;
+    fill cr
+  in
+  let expose drawing_area ev =
+    let cr = Cairo_gtk.create drawing_area#misc#window in
+    let allocation = drawing_area#misc#allocation in
+    draw cr (float allocation.Gtk.width) (float allocation.Gtk.height);
+    true in
+  (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
+  ignore(GMain.init());
+  let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in
+  ignore(w#connect#destroy GMain.quit);
+  let d = GMisc.drawing_area ~packing:w#add () in
+  ignore(d#event#connect#expose (expose d));
+  w#show();
+  GMain.main()
+
+let notty () =
+  let term = Notty_unix.Term.create () in
+  let view = AddView.create () in
+  AddView.init view term
+
 let add = with_secrets_file ~f:(fun sec ->
-    let open Cairo in
-    (* let pi2 = 8. *. Float.atan 1. in *)
-
-    (* let draw cr width height = *)
-    (*   let r = 0.25 *. width in *)
-    (*   set_source_rgba cr 0. 1. 0. 0.5; *)
-    (*   arc cr (0.5 *. width) (0.35 *. height) r 0. pi2; *)
-    (*   fill cr; *)
-    (*   set_source_rgba cr 1. 0. 0. 0.5; *)
-    (*   arc cr (0.35 *. width) (0.65 *. height) r 0. pi2; *)
-    (*   fill cr; *)
-    (*   set_source_rgba cr 0. 0. 1. 0.5; *)
-    (*   arc cr (0.65 *. width) (0.65 *. height) r 0. pi2; *)
-    (*   fill cr *)
-    (* in *)
-
-    (* let expose drawing_area ev = *)
-    (*   let cr = Cairo_gtk.create drawing_area#misc#window in *)
-    (*   let allocation = drawing_area#misc#allocation in *)
-    (*   draw cr (float allocation.Gtk.width) (float allocation.Gtk.height); *)
-    (*   true in *)
-
-    let open Cassowary in
-    let open Ctypes in
-
-    let printr = Result.(function
-      | Ok -> print_endline "Ok."
-      | Failed -> print_endline "Failed."
-      | Unsatisfied -> print_endline "Unsatisfied."
-      | Unbound -> print_endline "Unbound."
-    ) in
-
-    let s = newsolver null null in
-    let xl = newvariable s in
-    let xm = newvariable s in
-    let xr = newvariable s in
-    let c1 = newconstraint s Strength.Required in
-    ignore (addterm c1 xl 1.0);
-    ignore (setrelation c1 Relation.Greatequal);
-    ignore (add c1);
-    dumpsolver s;
-    let c2 = newconstraint s Strength.Required in
-    ignore (addterm c2 xl 1.0);
-    ignore (setrelation c2 Relation.Equal);
-    ignore (add c2);
-    dumpsolver s;
-
-    let open Yoga in
-    let node = node_new () in
-    node_style_set_width node 42.0;
-    let width_yg_val = node_style_get_width node in
-    let width = getf width_yg_val yg_val_value in
-    print_endline ("Node width: " ^ (Float.to_string width));
-    node_print node Style;
-
-
-    (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
-    (* ignore(GMain.init()); *)
-
-    (* let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in *)
-    (* ignore(w#connect#destroy GMain.quit); *)
-
-    (* let d = GMisc.drawing_area ~packing:w#add () in *)
-    (* ignore(d#event#connect#expose (expose d)); *)
-
-    (* w#show(); *)
-    (* GMain.main(); *)
-
-    (* let term = Notty_unix.Term.create () in *)
-    (* let view = AddView.create () in *)
-    (* AddView.init view term; *)
+    cairo ();
     sec
   )
 
