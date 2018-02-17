@@ -178,9 +178,18 @@ let yoga () =
   node_print node Style
 
 
-let cairo () =
-  let open Cairo in
-  let pi2 = 8. *. Float.atan 1. in
+module App(State : Incremental.S)  = struct
+  open Cairo
+
+  type t = {
+    win : GWindow.window;
+    is_dirty : bool State.Var.t;
+    width : int State.Var.t;
+    height : int State.Var.t;
+  }
+
+  let pi2 = 8. *. Float.atan 1.
+
   let draw cr width height =
     let r = 0.25 *. width in
     set_source_rgba cr 0. 1. 0. 0.5;
@@ -192,20 +201,61 @@ let cairo () =
     set_source_rgba cr 0. 0. 1. 0.5;
     arc cr (0.65 *. width) (0.65 *. height) r 0. pi2;
     fill cr
-  in
-  let expose drawing_area ev =
+
+  let expose t drawing_area ev =
     let cr = Cairo_gtk.create drawing_area#misc#window in
     let allocation = drawing_area#misc#allocation in
     draw cr (float allocation.Gtk.width) (float allocation.Gtk.height);
-    true in
-  (* let sur = Cairo.Image.create Cairo.Image.ARGB32 100 100 in *)
-  ignore(GMain.init());
-  let w = GWindow.window ~title:"esns" ~width:570 ~height:415 () in
-  ignore(w#connect#destroy GMain.quit);
-  let d = GMisc.drawing_area ~packing:w#add () in
-  ignore(d#event#connect#expose (expose d));
-  w#show();
-  GMain.main()
+    true
+
+  let create ~title ~width ~height =
+    ignore(GMain.init());
+    (* Lwt_glib.install (); *)
+    let win = GWindow.window ~title ~width ~height () in
+    let d = GMisc.drawing_area ~packing:win#add () in
+    let open State in
+    let t = {
+      win;
+      is_dirty = Var.create true;
+      width = Var.create width;
+      height = Var.create height;
+    } in
+    ignore(d#event#connect#expose (expose t d));
+    t
+
+  let setup_events {win} =
+    ignore(win#event#connect#key_press ~callback:(fun k ->
+      print_endline (GdkEvent.Key.string k);
+      true
+    ))
+
+  let main {win} =
+    ignore(win#connect#destroy GMain.quit);
+    win#show();
+    GMain.main()
+
+
+  let is_dirty {is_dirty} = State.Var.watch is_dirty
+  let width {width} = State.Var.watch width
+  let height {height} = State.Var.watch height
+end
+
+let cairo () =
+  let module State = Incremental.Make () in
+  let module Esns = App(State) in
+  let app = Esns.create ~title:"esns" ~width:570 ~height:415 in
+  (* let dirty = Esns.is_dirty app in *)
+  let width = Esns.width app in
+  let height = Esns.height app in
+  let layout = State.map2 width height ~f:(fun w h ->
+    if w > h then "Red" else "Green"
+  ) in
+  let layout_obs = State.observe layout in
+  State.stabilize ();
+  print_endline (State.Observer.value_exn layout_obs);
+  Esns.setup_events app;
+  Esns.main app
+
 
 let notty () =
   let term = Notty_unix.Term.create () in
