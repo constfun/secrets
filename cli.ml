@@ -178,66 +178,67 @@ let yoga () =
   node_print node Style
 
 
-module App(State : Incremental.S)  = struct
+module App (State : Incremental.S)  = struct
   open Cairo
 
   type t = {
     win : GWindow.window;
+    area : GMisc.drawing_area;
     is_dirty : bool State.Var.t;
-    width : int State.Var.t;
-    height : int State.Var.t;
+    size : (int * int) State.Var.t;
   }
 
   let pi2 = 8. *. Float.atan 1.
 
-  let draw cr width height =
+  let draw {area} state =
+    let ctx = Cairo_gtk.create area#misc#window in
+    let (width, height, (r, g, b)) = state in
+    printf "draw %f %f\n" width height;
     let r = 0.25 *. width in
-    set_source_rgba cr 0. 1. 0. 0.5;
-    arc cr (0.5 *. width) (0.35 *. height) r 0. pi2;
-    fill cr;
-    set_source_rgba cr 1. 0. 0. 0.5;
-    arc cr (0.35 *. width) (0.65 *. height) r 0. pi2;
-    fill cr;
-    set_source_rgba cr 0. 0. 1. 0.5;
-    arc cr (0.65 *. width) (0.65 *. height) r 0. pi2;
-    fill cr
-
-  let expose t drawing_area ev =
-    let cr = Cairo_gtk.create drawing_area#misc#window in
-    let allocation = drawing_area#misc#allocation in
-    draw cr (float allocation.Gtk.width) (float allocation.Gtk.height);
-    true
+    set_source_rgba ctx 0. 1. 0. 0.5;
+    arc ctx (0.5 *. width) (0.35 *. height) r 0. pi2;
+    fill ctx;
+    set_source_rgba ctx 1. 0. 0. 0.5;
+    arc ctx (0.35 *. width) (0.65 *. height) r 0. pi2;
+    fill ctx
+    (* set_source_rgba cr 0. 0. 1. 0.5; *)
+    (* arc cr (0.65 *. width) (0.65 *. height) r 0. pi2; *)
+    (* fill cr *)
 
   let create ~title ~width ~height =
     ignore(GMain.init());
-    (* Lwt_glib.install (); *)
     let win = GWindow.window ~title ~width ~height () in
-    let d = GMisc.drawing_area ~packing:win#add () in
+    ignore(win#connect#destroy GMain.quit);
+    win#show();
+    let area = GMisc.drawing_area ~packing:win#add () in
     let open State in
     let t = {
       win;
+      area;
       is_dirty = Var.create true;
-      width = Var.create width;
-      height = Var.create height;
+      size = Var.create (width, height);
     } in
-    ignore(d#event#connect#expose (expose t d));
     t
 
-  let setup_events {win} =
-    ignore(win#event#connect#key_press ~callback:(fun k ->
-      print_endline (GdkEvent.Key.string k);
+  let loop {win; area; size} draw =
+    ignore(area#event#connect#expose (fun e ->
+      let open State in
+      print_endline "expose";
+      stabilize ();
+      draw ();
       true
-    ))
-
-  let main {win} =
-    ignore(win#connect#destroy GMain.quit);
-    win#show();
+    ));
+    ignore(win#event#connect#configure ~callback:(fun e ->
+      let open State in
+      Var.set size ((GdkEvent.Configure.width e), (GdkEvent.Configure.height e));
+      stabilize ();
+      draw ();
+      true
+    ));
     GMain.main()
 
-
   let is_dirty {is_dirty} = State.Var.watch is_dirty
-  let width {width} = State.Var.watch width
-  let height {height} = State.Var.watch height
+  let size {size} = State.Var.watch size
 end
 
 let cairo () =
@@ -245,17 +246,16 @@ let cairo () =
   let module Esns = App(State) in
   let app = Esns.create ~title:"esns" ~width:570 ~height:415 in
   (* let dirty = Esns.is_dirty app in *)
-  let width = Esns.width app in
-  let height = Esns.height app in
-  let layout = State.map2 width height ~f:(fun w h ->
-    if w > h then "Red" else "Green"
+  let size = Esns.size app in
+  let draw_state = State.map size ~f:(fun (w, h) ->
+    (float w, float h, if w > h then (1., 0., 0.) else (0., 0., 1.))
   ) in
-  let layout_obs = State.observe layout in
-  State.stabilize ();
-  print_endline (State.Observer.value_exn layout_obs);
-  Esns.setup_events app;
-  Esns.main app
-
+  let draw_state_observer = State.observe draw_state in
+  let draw () =
+    let state = State.Observer.value_exn draw_state_observer in
+    Esns.draw app state
+  in
+  Esns.loop app draw
 
 let notty () =
   let term = Notty_unix.Term.create () in
