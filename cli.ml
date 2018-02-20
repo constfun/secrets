@@ -281,17 +281,43 @@ let notty () =
   let view = AddView.create () in
   AddView.init view term
 
+let draw ctx width height r g b =
+  let open Cairo in
+  let pi2 = 8. *. Float.atan 1. in
+  (* printf "draw %f %f\n" width height; *)
+  (* Out_channel.flush Out_channel.stdout; *)
+  clear ();
+  set_source_rgba ctx r g b 1.;
+  rectangle ctx 0. 0. width height;
+  fill ctx;
+  let r = 0.25 *. width in
+  set_source_rgba ctx 0. 1. 0. 0.5;
+  arc ctx (0.5 *. width) (0.35 *. height) r 0. pi2;
+  fill ctx;
+  set_source_rgba ctx 1. 0. 0. 0.5;
+  arc ctx (0.35 *. width) (0.65 *. height) r 0. pi2;
+  fill ctx
 
 let tsdl () =
   let open Tsdl in
-  let open Result in
   let log fmt = Format.printf (fmt ^^ "@.") in
+  let res_exn = function
+    | Ok r -> r
+    | Error (`Msg e) -> Sdl.log "Error %s" e; exit 1
+  in
   match Sdl.init Sdl.Init.video with
   | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
   | Ok () ->
-    match Sdl.create_window ~w:640 ~h:480 "Esns" Sdl.Window.(opengl + resizable) with
+    match Sdl.create_window ~w:640 ~h:480 "Esns" Sdl.Window.(shown + resizable) with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; 1
     | Ok w ->
+        (* Ex from https://wiki.libsdl.org/SDL_GetWindowSurface *)
+        let win_sur = res_exn (Sdl.get_window_surface w) in
+        let bmp = res_exn (Sdl.load_bmp "image.bmp") in
+        res_exn (Sdl.blit_surface ~src:bmp None ~dst:win_sur None);
+        res_exn (Sdl.update_window_surface w);
+        Sdl.free_surface bmp;
+        (**)
         let event_loop () =
           let e = Sdl.Event.create () in
           let rec loop () =
