@@ -183,17 +183,23 @@ module App (State : Incremental.S)  = struct
 
   type t = {
     win : GWindow.window;
-    area : GMisc.drawing_area;
+    (* area : GMisc.drawing_area; *)
     is_dirty : bool State.Var.t;
     size : (int * int) State.Var.t;
   }
 
   let pi2 = 8. *. Float.atan 1.
 
-  let draw {area} state =
-    let ctx = Cairo_gtk.create area#misc#window in
+
+  let draw {win} state =
+    let ctx = Cairo_gtk.create win#misc#window in
     let (width, height, (r, g, b)) = state in
-    printf "draw %f %f\n" width height;
+    (* printf "draw %f %f\n" width height; *)
+    (* Out_channel.flush Out_channel.stdout; *)
+    clear ();
+    set_source_rgba ctx r g b 1.;
+    rectangle ctx 0. 0. width height;
+    fill ctx;
     let r = 0.25 *. width in
     set_source_rgba ctx 0. 1. 0. 0.5;
     arc ctx (0.5 *. width) (0.35 *. height) r 0. pi2;
@@ -201,39 +207,52 @@ module App (State : Incremental.S)  = struct
     set_source_rgba ctx 1. 0. 0. 0.5;
     arc ctx (0.35 *. width) (0.65 *. height) r 0. pi2;
     fill ctx
-    (* set_source_rgba cr 0. 0. 1. 0.5; *)
-    (* arc cr (0.65 *. width) (0.65 *. height) r 0. pi2; *)
-    (* fill cr *)
+
 
   let create ~title ~width ~height =
     ignore(GMain.init());
     let win = GWindow.window ~title ~width ~height () in
     ignore(win#connect#destroy GMain.quit);
-    win#show();
-    let area = GMisc.drawing_area ~packing:win#add () in
+    win#misc#set_app_paintable true;
+    (* win#misc#set_double_buffered false; *)
+    win#misc#modify_bg [(`NORMAL, `BLACK)];
+    win#show ();
+    (* You can call win#misc#set_app_paintable and paint directly on the window,
+       without having to create a drawing_area, but this freezes the window, not sure why.
+       This would have allowed us to not layout the drawing area inside the window, but oh well... *)
+    (* let area = GMisc.drawing_area ~packing:win#add () in *)
+    (* area#misc#modify_bg [(`NORMAL, `WHITE)]; *)
+    (* GDK double buffers draw ops.
+       Do we want this with Cairo?
+       Does Cairo do its own double buffering?
+       See: win#misc#set_double_buffered *)
     let open State in
     let t = {
       win;
-      area;
+      (* area; *)
       is_dirty = Var.create true;
       size = Var.create (width, height);
     } in
     t
 
-  let loop {win; area; size} draw =
-    ignore(area#event#connect#expose (fun e ->
+  let loop {win;size;} draw =
+    (* GTK 3 has a `draw` signal that gives you a Cairo context automatically.
+       We're using GTK 2 though... *)
+    (* ignore(area#event#connect#expose (fun e -> *)
+
+    (* )); *)
+    ignore(win#event#connect#expose (fun e ->
       let open State in
-      print_endline "expose";
+      (* print_endline "expose"; *)
       stabilize ();
       draw ();
-      true
+      false
     ));
     ignore(win#event#connect#configure ~callback:(fun e ->
       let open State in
       Var.set size ((GdkEvent.Configure.width e), (GdkEvent.Configure.height e));
       stabilize ();
-      draw ();
-      true
+      false
     ));
     GMain.main()
 
@@ -262,8 +281,40 @@ let notty () =
   let view = AddView.create () in
   AddView.init view term
 
+
+let tsdl () =
+  let open Tsdl in
+  let open Result in
+  let log fmt = Format.printf (fmt ^^ "@.") in
+  match Sdl.init Sdl.Init.video with
+  | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
+  | Ok () ->
+    match Sdl.create_window ~w:640 ~h:480 "Esns" Sdl.Window.(opengl + resizable) with
+    | Error (`Msg e) -> Sdl.log "Create window error: %s" e; 1
+    | Ok w ->
+        let event_loop () =
+          let e = Sdl.Event.create () in
+          let rec loop () =
+            match Sdl.wait_event (Some e) with
+            | Error (`Msg e) -> Sdl.log "Wait event error: %s" e
+            | Ok () ->
+                log "%a" Fmts.pp_event e;
+                match Sdl.Event.(enum (get e typ)) with
+                | `Quit -> ()
+                | _ -> loop ()
+          in
+          Sdl.start_text_input ();
+          loop ()
+        in
+        event_loop ();
+        Sdl.destroy_window w;
+        Sdl.quit ();
+        0
+
+
+
 let add = with_secrets_file ~f:(fun sec ->
-    cairo ();
+    ignore(tsdl ());
     sec
   )
 
