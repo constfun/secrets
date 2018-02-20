@@ -296,6 +296,9 @@ let draw ctx width height r g b =
   fill ctx;
   set_source_rgba ctx 1. 0. 0. 0.5;
   arc ctx (0.35 *. width) (0.65 *. height) r 0. pi2;
+  fill ctx;
+  set_source_rgba ctx 0. 0. 1. 0.5;
+  arc ctx (0.65 *. width) (0.65 *. height) r 0. pi2;
   fill ctx
 
 let tsdl () =
@@ -311,12 +314,14 @@ let tsdl () =
     match Sdl.create_window ~w:640 ~h:480 "Esns" Sdl.Window.(shown + resizable) with
     | Error (`Msg e) -> Sdl.log "Create window error: %s" e; 1
     | Ok w ->
-        (* Ex from https://wiki.libsdl.org/SDL_GetWindowSurface *)
-        let win_sur = res_exn (Sdl.get_window_surface w) in
-        let bmp = res_exn (Sdl.load_bmp "image.bmp") in
-        res_exn (Sdl.blit_surface ~src:bmp None ~dst:win_sur None);
+        let screen = res_exn (Sdl.get_window_surface w) in
+        let fmt = Sdl.get_surface_format_enum screen in
+        print_endline (Sdl.get_pixel_format_name fmt);
+        let pix_data = Sdl.get_surface_pixels screen Bigarray.int8_unsigned in
+        let cairo_sur = Cairo.Image.(create_for_data8 pix_data ARGB32 640 480) in
+        let ctx = Cairo.create cairo_sur in
+        draw ctx 640. 480. 0.5 0.5 1.5;
         res_exn (Sdl.update_window_surface w);
-        Sdl.free_surface bmp;
         (**)
         let event_loop () =
           let e = Sdl.Event.create () in
