@@ -179,115 +179,103 @@ let yoga () =
 
 
 module App (State : Incremental.S)  = struct
-  open Cairo
+  open Tsdl
 
   type t = {
-    win : GWindow.window;
-    (* area : GMisc.drawing_area; *)
-    is_dirty : bool State.Var.t;
-    size : (int * int) State.Var.t;
+    win : Sdl.window;
+    ctx : Cairo.context;
+    width : float;
+    height : float;
   }
 
-  let pi2 = 8. *. Float.atan 1.
+  let log = Sdl.log
 
-
-  let draw {win} state =
-    let ctx = Cairo_gtk.create win#misc#window in
-    let (width, height, (r, g, b)) = state in
-    (* printf "draw %f %f\n" width height; *)
-    (* Out_channel.flush Out_channel.stdout; *)
-    clear ();
-    set_source_rgba ctx r g b 1.;
-    rectangle ctx 0. 0. width height;
-    fill ctx;
-    let r = 0.25 *. width in
-    set_source_rgba ctx 0. 1. 0. 0.5;
-    arc ctx (0.5 *. width) (0.35 *. height) r 0. pi2;
-    fill ctx;
-    set_source_rgba ctx 1. 0. 0. 0.5;
-    arc ctx (0.35 *. width) (0.65 *. height) r 0. pi2;
-    fill ctx
-
+  let context_from_window_exn win =
+    let w, h = Sdl.get_window_size win in
+    let screen_surface = Rresult.R.get_ok (Sdl.get_window_surface win) in
+    let pixels = Sdl.get_surface_pixels screen_surface Bigarray.int8_unsigned in
+    let cairo_surface = Cairo.Image.(create_for_data8 pixels ARGB32 w h) in
+    Cairo.create cairo_surface
 
   let create ~title ~width ~height =
-    ignore(GMain.init());
-    let win = GWindow.window ~title ~width ~height () in
-    ignore(win#connect#destroy GMain.quit);
-    win#misc#set_app_paintable true;
-    (* win#misc#set_double_buffered false; *)
-    win#misc#modify_bg [(`NORMAL, `BLACK)];
-    win#show ();
-    (* You can call win#misc#set_app_paintable and paint directly on the window,
-       without having to create a drawing_area, but this freezes the window, not sure why.
-       This would have allowed us to not layout the drawing area inside the window, but oh well... *)
-    (* let area = GMisc.drawing_area ~packing:win#add () in *)
-    (* area#misc#modify_bg [(`NORMAL, `WHITE)]; *)
-    (* GDK double buffers draw ops.
-       Do we want this with Cairo?
-       Does Cairo do its own double buffering?
-       See: win#misc#set_double_buffered *)
     let open State in
-    let t = {
+    let open Result.Monad_infix in
+    let window_res =
+      Sdl.init Sdl.Init.video >>= fun _ ->
+      Sdl.create_window title ~w:width ~h:height Sdl.Window.(opengl + shown + resizable)
+    in
+    match window_res with
+    | Error (`Msg e) -> log "Error initializing SDL: %s" e; exit 1
+    | Ok win -> {
       win;
-      (* area; *)
-      is_dirty = Var.create true;
-      size = Var.create (width, height);
-    } in
-    t
+      ctx = (context_from_window_exn win);
+      width=float width;
+      height=float height;
+    }
 
-  let loop {win;size;} draw =
-    (* GTK 3 has a `draw` signal that gives you a Cairo context automatically.
-       We're using GTK 2 though... *)
-    (* ignore(area#event#connect#expose (fun e -> *)
 
-    (* )); *)
-    ignore(win#event#connect#expose (fun e ->
-      let open State in
-      (* print_endline "expose"; *)
-      stabilize ();
-      draw ();
-      false
-    ));
-    ignore(win#event#connect#configure ~callback:(fun e ->
-      let open State in
-      Var.set size ((GdkEvent.Configure.width e), (GdkEvent.Configure.height e));
-      stabilize ();
-      false
-    ));
-    GMain.main()
-
-  let is_dirty {is_dirty} = State.Var.watch is_dirty
-  let size {size} = State.Var.watch size
+  let loop t draw =
+    let start () =
+      let ev = Sdl.Event.create () in
+      let rec event_loop t =
+        match Sdl.wait_event (Some ev) with
+        | Error (`Msg e) -> log "Event loop error: %s" e; exit 1
+        | Ok () ->
+            log "%a" Fmts.pp_event ev;
+            match Sdl.Event.(enum (get ev typ)) with
+            | `Window_event -> (
+                match Sdl.Event.(window_event_enum (get ev window_event_id)) with
+                | `Resized ->
+                  let width = Int32.to_float Sdl.Event.(get ev window_data1) in
+                  let height = Int32.to_float Sdl.Event.(get ev window_data2) in
+                  (* We need to get a new context when the size of the window changes. *)
+                  let ctx = context_from_window_exn t.win in
+                  render {t with width; height; ctx}
+                | _ -> event_loop t
+            )
+            | `Quit -> ()
+            | _ -> event_loop t
+      and render t =
+        draw t.ctx t.width t.height;
+        match Sdl.update_window_surface t.win with
+        | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
+        | Ok () -> event_loop t
+      in
+      Sdl.start_text_input ();
+      render t
+    in
+    start ();
+    Sdl.destroy_window t.win;
+    Sdl.quit ()
 end
 
 let cairo () =
   let module State = Incremental.Make () in
   let module Esns = App(State) in
   let app = Esns.create ~title:"esns" ~width:570 ~height:415 in
+  ignore app
   (* let dirty = Esns.is_dirty app in *)
-  let size = Esns.size app in
-  let draw_state = State.map size ~f:(fun (w, h) ->
-    (float w, float h, if w > h then (1., 0., 0.) else (0., 0., 1.))
-  ) in
-  let draw_state_observer = State.observe draw_state in
-  let draw () =
-    let state = State.Observer.value_exn draw_state_observer in
-    Esns.draw app state
-  in
-  Esns.loop app draw
+  (* let size = Esns.size app in *)
+  (* let draw_state = State.map size ~f:(fun (w, h) -> *)
+  (*   (float w, float h, if w > h then (1., 0., 0.) else (0., 0., 1.)) *)
+  (* ) in *)
+  (* let draw_state_observer = State.observe draw_state in *)
+  (* let draw () = *)
+  (*   let state = State.Observer.value_exn draw_state_observer in *)
+  (*   (1* Esns.draw app state *1) *)
+  (* in *)
+  (* Esns.loop app draw *)
 
 let notty () =
   let term = Notty_unix.Term.create () in
   let view = AddView.create () in
   AddView.init view term
 
-let draw ctx width height r g b =
+let draw ctx width height =
   let open Cairo in
   let pi2 = 8. *. Float.atan 1. in
-  (* printf "draw %f %f\n" width height; *)
-  (* Out_channel.flush Out_channel.stdout; *)
   clear ();
-  set_source_rgba ctx r g b 1.;
+  set_source_rgba ctx (180. /. 255.) (115. /. 255.) 1.0 1.;
   rectangle ctx 0. 0. width height;
   fill ctx;
   let r = 0.25 *. width in
@@ -301,48 +289,12 @@ let draw ctx width height r g b =
   arc ctx (0.65 *. width) (0.65 *. height) r 0. pi2;
   fill ctx
 
+
 let tsdl () =
-  let open Tsdl in
-  let log fmt = Format.printf (fmt ^^ "@.") in
-  let res_exn = function
-    | Ok r -> r
-    | Error (`Msg e) -> Sdl.log "Error %s" e; exit 1
-  in
-  match Sdl.init Sdl.Init.video with
-  | Error (`Msg e) -> Sdl.log "Init error: %s" e; exit 1
-  | Ok () ->
-    match Sdl.create_window ~w:640 ~h:480 "Esns" Sdl.Window.(shown + resizable) with
-    | Error (`Msg e) -> Sdl.log "Create window error: %s" e; 1
-    | Ok w ->
-        let screen = res_exn (Sdl.get_window_surface w) in
-        let fmt = Sdl.get_surface_format_enum screen in
-        print_endline (Sdl.get_pixel_format_name fmt);
-        let pix_data = Sdl.get_surface_pixels screen Bigarray.int8_unsigned in
-        let cairo_sur = Cairo.Image.(create_for_data8 pix_data ARGB32 640 480) in
-        let ctx = Cairo.create cairo_sur in
-        draw ctx 640. 480. 0.5 0.5 1.5;
-        res_exn (Sdl.update_window_surface w);
-        (**)
-        let event_loop () =
-          let e = Sdl.Event.create () in
-          let rec loop () =
-            match Sdl.wait_event (Some e) with
-            | Error (`Msg e) -> Sdl.log "Wait event error: %s" e
-            | Ok () ->
-                log "%a" Fmts.pp_event e;
-                match Sdl.Event.(enum (get e typ)) with
-                | `Quit -> ()
-                | _ -> loop ()
-          in
-          Sdl.start_text_input ();
-          loop ()
-        in
-        event_loop ();
-        Sdl.destroy_window w;
-        Sdl.quit ();
-        0
-
-
+  let module State = Incremental.Make () in
+  let module Esns = App(State) in
+  let app = Esns.create ~title:"esns" ~width:570 ~height:415 in
+  Esns.loop app draw
 
 let add = with_secrets_file ~f:(fun sec ->
     ignore(tsdl ());
