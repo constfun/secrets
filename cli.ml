@@ -227,14 +227,17 @@ module App (State : Incremental.S)  = struct
       draw ctx (float w) (float h);
       match Sdl.update_window_surface t.win with
       | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
-      | Ok () -> ()
+      | Ok () -> ();
     in
     Patch.tsdl_patch outofloop_draw;
     let start () =
       let ev = Sdl.Event.create () in
       let rec event_loop t =
         (* log "event loop"; *)
-        match Sdl.wait_event (Some ev) with
+        (* Mutex.unlock mutex; *)
+        let ev_res = Sdl.wait_event (Some ev) in
+        (* Mutex.lock mutex; *)
+        match ev_res with
         | Error (`Msg e) -> log "Event loop error: %s" e; exit 1
         | Ok () ->
             (* log "%a" Fmts.pp_event ev; *)

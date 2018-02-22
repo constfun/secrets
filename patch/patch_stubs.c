@@ -21,12 +21,13 @@ int eventFilter(void* cb, SDL_Event *e )
         if (e->window.event == SDL_WINDOWEVENT_RESIZED) {
             int w = e->window.data1;
             int h = e->window.data2;
-            printf("SDL_WINDOWEVENT_RESIZED %ix%i\n", w, h);
+            SDL_Log("SDL_WINDOWEVENT_RESIZED %ix%i\n", w, h);
             SDL_Window* win = SDL_GetWindowFromID(e->window.windowID);
             /* win->surface_valid = SDL_FALSE; */
-            SDL_SetWindowSize(win, w, h);
+            /* SDL_SetWindowSize(win, w, h); */
             caml_callback2(cb, Val_int(w), Val_int(h));
-            fflush(stdout);
+            /* SDL_FlushEvent(SDL_WINDOWEVENT); */
+            /* fflush(stdout); */
         }
     }
     return 1; // return 1 so all events are added to queue
@@ -34,8 +35,6 @@ int eventFilter(void* cb, SDL_Event *e )
 
 CAMLprim value tsdl_patch(value cb) {
     CAMLparam1(cb);
-    printf("Hello World! %i\n", c++);
-    fflush(stdout);
     SDL_SetEventFilter(eventFilter, cb);
     return Val_unit;
 }
