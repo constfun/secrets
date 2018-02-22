@@ -3,5 +3,4 @@
  (library
  ((name patch)
   (libraries (ctypes ctypes.foreign))
-  (c_flags (:standard -Llibsdl2))
   (c_names (patch_stubs))))

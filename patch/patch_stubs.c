@@ -13,15 +13,21 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_video.h>
 
-
 int c = 0;
 int eventFilter(void* cb, SDL_Event *e )
 {
-    if( e->type == 512) {
-        /* SDL_SetVideoMode(e->resize.w,e->resize.h,0,SDL_ANYFORMAT | SDL_RESIZABLE); */
-        printf("Hello World! %i\n", e->type);
-        caml_callback(cb, Val_unit);
-        fflush(stdout);
+    if (e->type == SDL_WINDOWEVENT) {
+        printf("SDL_WINDOWEVENT %i\n", e->type);
+        if (e->window.event == SDL_WINDOWEVENT_RESIZED) {
+            int w = e->window.data1;
+            int h = e->window.data2;
+            printf("SDL_WINDOWEVENT_RESIZED %ix%i\n", w, h);
+            SDL_Window* win = SDL_GetWindowFromID(e->window.windowID);
+            /* win->surface_valid = SDL_FALSE; */
+            SDL_SetWindowSize(win, w, h);
+            caml_callback2(cb, Val_int(w), Val_int(h));
+            fflush(stdout);
+        }
     }
     return 1; // return 1 so all events are added to queue
 }

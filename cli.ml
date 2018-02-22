@@ -190,8 +190,12 @@ module App (State : Incremental.S)  = struct
 
   let log = Sdl.log
 
-  let context_from_window_exn win =
-    let w, h = Sdl.get_window_size win in
+  let context_from_window_exn ?size win =
+    (* let (w, h) = match size with *)
+    (* | Some s -> s *)
+    (* | None ->  Sdl.get_window_size win *)
+    (* in *)
+    let w, h =  Sdl.get_window_size win in
     let screen_surface = Rresult.R.get_ok (Sdl.get_window_surface win) in
     let pixels = Sdl.get_surface_pixels screen_surface Bigarray.int8_unsigned in
     let cairo_surface = Cairo.Image.(create_for_data8 pixels ARGB32 w h) in
@@ -215,11 +219,15 @@ module App (State : Incremental.S)  = struct
 
 
   let loop t draw =
-    let outofloop_draw () =
-      printf "YES";
-      let ctx = context_from_window_exn t.win in
-      draw ctx t.width t.height;
-      ()
+    let outofloop_draw w h =
+      log "DRAW %i %i\n" w h;
+      (* Out_channel.flush Out_channel.stdout; *)
+      let ctx = context_from_window_exn t.win  in
+      (* let w, h =  Sdl.get_window_size win in *)
+      draw ctx (float w) (float h);
+      match Sdl.update_window_surface t.win with
+      | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
+      | Ok () -> ()
     in
     Patch.tsdl_patch outofloop_draw;
     let start () =
