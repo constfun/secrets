@@ -190,16 +190,12 @@ module App (State : Incremental.S)  = struct
 
   let log = Sdl.log
 
-  let context_from_window_exn ?size win =
-    (* let (w, h) = match size with *)
-    (* | Some s -> s *)
-    (* | None ->  Sdl.get_window_size win *)
-    (* in *)
+  let context_from_window_exn win =
     let w, h =  Sdl.get_window_size win in
     let screen_surface = Rresult.R.get_ok (Sdl.get_window_surface win) in
     let pixels = Sdl.get_surface_pixels screen_surface Bigarray.int8_unsigned in
     let cairo_surface = Cairo.Image.(create_for_data8 pixels ARGB32 w h) in
-    Cairo.create cairo_surface
+    (Cairo.create cairo_surface, float w, float h)
 
   let create ~title ~width ~height =
     let open State in
@@ -210,24 +206,25 @@ module App (State : Incremental.S)  = struct
     in
     match window_res with
     | Error (`Msg e) -> log "Error initializing SDL: %s" e; exit 1
-    | Ok win -> {
-      win;
-      ctx = (context_from_window_exn win);
-      width=float width;
-      height=float height;
-    }
+    | Ok win ->
+      let (ctx, width, height) = context_from_window_exn win in
+      { win; ctx; width; height; }
 
 
   let loop t draw =
-    let outofloop_draw w h =
-      log "DRAW %i %i\n" w h;
-      (* Out_channel.flush Out_channel.stdout; *)
-      let ctx = context_from_window_exn t.win  in
-      (* let w, h =  Sdl.get_window_size win in *)
-      draw ctx (float w) (float h);
+    let mtx = Mutex.create () in
+    let outofloop_draw () =
+      log "CB\n";
+      (* Mutex.lock mtx; *)
+      Out_channel.flush Out_channel.stdout;
+      let (ctx, width, height) = context_from_window_exn t.win in
+      log "DRAW %f %f\n" width height;
+      draw ctx width height;
       match Sdl.update_window_surface t.win with
       | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
       | Ok () -> ();
+      Cairo.Surface.finish(Cairo.get_target ctx);
+      (* Mutex.unlock mtx *)
     in
     Patch.tsdl_patch outofloop_draw;
     let start () =
@@ -236,31 +233,43 @@ module App (State : Incremental.S)  = struct
         (* log "event loop"; *)
         (* Mutex.unlock mutex; *)
         let ev_res = Sdl.wait_event (Some ev) in
-        (* Mutex.lock mutex; *)
+        Mutex.lock mtx;
         match ev_res with
         | Error (`Msg e) -> log "Event loop error: %s" e; exit 1
         | Ok () ->
+            log "0";
             (* log "%a" Fmts.pp_event ev; *)
             match Sdl.Event.(enum (get ev typ)) with
             | `Window_event -> (
                 match Sdl.Event.(window_event_enum (get ev window_event_id)) with
                 | `Resized ->
-                  let width = Int32.to_float Sdl.Event.(get ev window_data1) in
-                  let height = Int32.to_float Sdl.Event.(get ev window_data2) in
+                  log "1";
+                  (* let width = Int32.to_float Sdl.Event.(get ev window_data1) in *)
+                  (* let height = Int32.to_float Sdl.Event.(get ev window_data2) in *)
                   (* We need to get a new context when the size of the window changes. *)
-                  let ctx = context_from_window_exn t.win in
+                  Cairo.Surface.finish(Cairo.get_target t.ctx);
+                  let (ctx, width, height) = context_from_window_exn t.win in
                   render {t with ctx; width; height}
-                | _ -> event_loop t
+                | _ ->
+                    log "2";
+                    Mutex.unlock mtx;
+                    event_loop t
             )
             | `Quit -> ()
-            | _ -> event_loop t
+            | _ ->
+                log "3";
+                Mutex.unlock mtx;
+                event_loop t
       and render t =
         draw t.ctx t.width t.height;
         match Sdl.update_window_surface t.win with
         | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
-        | Ok () -> event_loop t
+        | Ok () ->
+            Mutex.unlock mtx;
+            event_loop t
       in
       Sdl.start_text_input ();
+      Mutex.lock mtx;
       render t
     in
     start ();
