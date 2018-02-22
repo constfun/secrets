@@ -202,7 +202,7 @@ module App (State : Incremental.S)  = struct
     let open Result.Monad_infix in
     let window_res =
       Sdl.init Sdl.Init.video >>= fun _ ->
-      Sdl.create_window title ~w:width ~h:height Sdl.Window.(opengl + shown + resizable)
+      Sdl.create_window title ~w:width ~h:height Sdl.Window.(opengl + shown + resizable + allow_highdpi)
     in
     match window_res with
     | Error (`Msg e) -> log "Error initializing SDL: %s" e; exit 1
@@ -215,13 +215,21 @@ module App (State : Incremental.S)  = struct
 
 
   let loop t draw =
+    let outofloop_draw () =
+      printf "YES";
+      let ctx = context_from_window_exn t.win in
+      draw ctx t.width t.height;
+      ()
+    in
+    Patch.tsdl_patch outofloop_draw;
     let start () =
       let ev = Sdl.Event.create () in
       let rec event_loop t =
+        (* log "event loop"; *)
         match Sdl.wait_event (Some ev) with
         | Error (`Msg e) -> log "Event loop error: %s" e; exit 1
         | Ok () ->
-            log "%a" Fmts.pp_event ev;
+            (* log "%a" Fmts.pp_event ev; *)
             match Sdl.Event.(enum (get ev typ)) with
             | `Window_event -> (
                 match Sdl.Event.(window_event_enum (get ev window_event_id)) with
@@ -230,7 +238,7 @@ module App (State : Incremental.S)  = struct
                   let height = Int32.to_float Sdl.Event.(get ev window_data2) in
                   (* We need to get a new context when the size of the window changes. *)
                   let ctx = context_from_window_exn t.win in
-                  render {t with width; height; ctx}
+                  render {t with ctx; width; height}
                 | _ -> event_loop t
             )
             | `Quit -> ()
