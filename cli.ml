@@ -212,64 +212,41 @@ module App (State : Incremental.S)  = struct
 
 
   let loop t draw =
-    let mtx = Mutex.create () in
     let outofloop_draw () =
-      log "CB\n";
-      (* Mutex.lock mtx; *)
-      Out_channel.flush Out_channel.stdout;
       let (ctx, width, height) = context_from_window_exn t.win in
-      log "DRAW %f %f\n" width height;
       draw ctx width height;
       match Sdl.update_window_surface t.win with
       | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
       | Ok () -> ();
       Cairo.Surface.finish(Cairo.get_target ctx);
-      (* Mutex.unlock mtx *)
     in
-    Patch.tsdl_patch outofloop_draw;
+    Patch.listen_for_resize_event outofloop_draw;
     let start () =
       let ev = Sdl.Event.create () in
       let rec event_loop t =
-        (* log "event loop"; *)
-        (* Mutex.unlock mutex; *)
         let ev_res = Sdl.wait_event (Some ev) in
-        Mutex.lock mtx;
         match ev_res with
         | Error (`Msg e) -> log "Event loop error: %s" e; exit 1
         | Ok () ->
-            log "0";
-            (* log "%a" Fmts.pp_event ev; *)
             match Sdl.Event.(enum (get ev typ)) with
             | `Window_event -> (
                 match Sdl.Event.(window_event_enum (get ev window_event_id)) with
                 | `Resized ->
-                  log "1";
-                  (* let width = Int32.to_float Sdl.Event.(get ev window_data1) in *)
-                  (* let height = Int32.to_float Sdl.Event.(get ev window_data2) in *)
                   (* We need to get a new context when the size of the window changes. *)
                   Cairo.Surface.finish(Cairo.get_target t.ctx);
                   let (ctx, width, height) = context_from_window_exn t.win in
                   render {t with ctx; width; height}
-                | _ ->
-                    log "2";
-                    Mutex.unlock mtx;
-                    event_loop t
+                | _ -> event_loop t
             )
             | `Quit -> ()
-            | _ ->
-                log "3";
-                Mutex.unlock mtx;
-                event_loop t
+            | _ -> event_loop t
       and render t =
         draw t.ctx t.width t.height;
         match Sdl.update_window_surface t.win with
         | Error (`Msg e) -> log "Update window surface failed: %s" e; exit 1
-        | Ok () ->
-            Mutex.unlock mtx;
-            event_loop t
+        | Ok () -> event_loop t
       in
       Sdl.start_text_input ();
-      Mutex.lock mtx;
       render t
     in
     start ();
