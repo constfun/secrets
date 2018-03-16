@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 350 150" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
+    <g transform="matrix(2.39316,0,0,0.9375,-188.564,-80)">
+        <path d="M210,115.936L208.458,112L94.542,112L93,115.936L93,188.064L94.542,192L170.83,192L191.752,223.686L185.83,192L208.458,192L210,188.064L210,115.936Z" style="fill:rgb(240,239,238);stroke:black;stroke-width:0.83px;"/>
+    </g>
+    <g transform="matrix(1,0,0,1,44.4073,18.804)">
+        <text x="43px" y="55px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:32.109px;">Hello W<tspan x="154.817px 172.675px " y="55px 55px ">or</tspan>ld!</text>
+    </g>
+</svg>
