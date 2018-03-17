@@ -238,6 +238,11 @@ module App (State : Incremental.S)  = struct
                   render {t with ctx; width; height}
                 | _ -> event_loop t
             )
+            | `Key_down ->
+                let kc = Sdl.Event.(get ev keyboard_keycode) in
+                print_string (Sdl.get_key_name kc);
+                Pervasives.flush_all ();
+                event_loop t
             | `Quit -> ()
             | _ -> event_loop t
       and render t =
@@ -300,6 +305,7 @@ let tsdl () =
   let module Esns = App(State) in
   let app = Esns.create ~title:"esns" ~width:570 ~height:415 in
   Esns.loop app draw
+
 
 let add = with_secrets_file ~f:(fun sec ->
     ignore(tsdl ());
