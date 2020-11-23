@@ -1,0 +1,9 @@
+(executable
+ (modes byte exe)
+ (name cli)
+ (libraries core core_extended.std re2 termbox nacl extunix))
+
+(menhir
+ (modules parser))
+
+(ocamllex lexer)
