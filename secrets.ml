@@ -1,9 +1,8 @@
 open Core
 open Entry
-open Re2
 
 
-type hl = (int, Int.comparator_witness) Set.t
+type hl = (Int.t, Int.comparator_witness) Set.t
 
 type qres = {
   summary : string;
@@ -39,12 +38,12 @@ end = struct
     ) in
     let rs = String.concat_map query ~sep:".*?" ~f:(fun c -> "(" ^ String.of_char c ^ ")") in
     let rs = "(?i)" ^ rs in
-    let r = Regex.create_exn rs in
+    let r = Re2.create_exn rs in
     List.filter_map search_space ~f:(fun (summary, value) ->
-      match Regex.get_matches ~max:1 r summary with
+      match Re2.get_matches ~max:1 r summary with
       | Ok r -> (match r with
         | m :: _ ->
-            let summary_hl = ref (Set.empty ~comparator:Int.comparator) in
+            let summary_hl = ref (Set.empty Int.comparator) in
             let num_submatches = (String.length query) in
             for i = 1 to num_submatches do
               let (match_indx, _) = Regex.Match.get_pos_exn ~sub:(`Index i) m in
