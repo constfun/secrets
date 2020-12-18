@@ -43,10 +43,10 @@ end = struct
       match Re2.get_matches ~max:1 r summary with
       | Ok r -> (match r with
         | m :: _ ->
-            let summary_hl = ref (Set.empty Int.comparator) in
+            let summary_hl = ref (Set.Using_comparator.empty ~comparator:Int.comparator) in
             let num_submatches = (String.length query) in
             for i = 1 to num_submatches do
-              let (match_indx, _) = Regex.Match.get_pos_exn ~sub:(`Index i) m in
+              let (match_indx, _) = Re2.Match.get_pos_exn ~sub:(`Index i) m in
               summary_hl := Set.add !summary_hl match_indx
             done;
             Some { summary; summary_hl=(!summary_hl); value }

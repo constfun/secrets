@@ -32,9 +32,9 @@ let string_cells s (x, y) _ =
 
 let handle_input e text =
   match e with
-  | Ascii c when Char.is_alphanum c || c = ' ' ->
+  | Ascii c when Char.is_alphanum c || Char.equal c ' ' ->
       Some (text ^ (Char.to_string c))
-  | Ascii c when c = '\x7F' (* backspace *) ->
+  | Ascii c when Char.equal c '\x7F' (* backspace *) ->
       Some (String.drop_suffix text 1)
   | _ -> None
 
@@ -56,7 +56,7 @@ let search secrets query =
   let results = Secrets.search secrets query in
   let len = List.length results in
   let lines = Array.create ~len "" in
-  let hl = Array.create ~len (Set.empty ~comparator:Int.comparator) in
+  let hl = Array.create ~len (Set.Using_comparator.empty ~comparator:Int.comparator) in
   List.iteri results ~f:(fun i { summary; summary_hl; value=_ } ->
     lines.(i) <- summary;
     hl.(i) <- summary_hl
@@ -75,11 +75,11 @@ let slider_input e sel h =
   let move_sel_down = Update (Int.min (h - 1) (sel + 1)) in
   let move_sel_up = Update (Int.max 0 (sel - 1)) in
   match e with
-  | Ascii c when c = '\x0D' (* ENTER *) -> Select sel
+  | Ascii c when Char.equal c '\x0D' (* ENTER *) -> Select sel
   | Key Arrow_down -> move_sel_down
-  | Ascii c when c = '\x0A' -> move_sel_down
+  | Ascii c when Char.equal c '\x0A' -> move_sel_down
   | Key Arrow_up -> move_sel_up
-  | Ascii c when c = '\x0B' -> move_sel_up
+  | Ascii c when Char.equal c '\x0B' -> move_sel_up
   | _ -> Update sel
 
 let rec loop state =
@@ -94,7 +94,7 @@ let rec loop state =
   Termbox.set_cursor (inputx + (String.length state.query)) inputy;
   Termbox.present ();
   let state = match Termbox.poll_event () with
-    | Ascii c when c = '\x03' (* CTRL_C *) -> None
+    | Ascii c when Char.equal c '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ ) as e ->
         (match handle_input e state.query with | Some query ->
             let (results, summary, summary_hl) = search state.secrets query in

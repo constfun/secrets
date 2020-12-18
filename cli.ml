@@ -1,19 +1,16 @@
 open Core
-
-(* open Core_extended.Std *)
 open Secrets
 open Entry
-open Termbox
 
 type io_format = Tsv | Sec
 
 exception Invalid_format
 
-let rc_path = Filename.expand "~/.secrets"
+let rc_path = Filename.realpath "~/.secrets"
 
-let rc_key_path = Filename.implode [ rc_path; "key" ]
+let rc_key_path = Filename.concat rc_path "key" 
 
-let rc_sec_path = Filename.implode [ rc_path; "default" ]
+let rc_sec_path = Filename.concat rc_path "default" 
 
 let filename ~should_exist =
   Command.Spec.Arg_type.create (fun filename ->
@@ -40,7 +37,7 @@ let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
   with_secrets_file ~key_path ~sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path) then
-    Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
+    Unix.symlink ~target:(Filename.realpath sec_path) ~link_name:rc_sec_path
 
 let import ~fmt =
   with_secrets_file ~f:(fun _ ->
@@ -79,8 +76,8 @@ let rec edit_and_parse ?init_contents () =
     | Some init_contents -> fun oc -> Out_channel.output_string oc init_contents
     | None -> ignore
   in
-  Filename.with_open_temp_file "edit" ".sec" ~write:write_fn ~in_dir:rc_path
-    ~f:(fun fname ->
+  let fname, oc = Filename.open_temp_file "edit" ".sec" ~in_dir:rc_path in
+  write_fn oc;
       let editor =
         match Sys.getenv "EDITOR" with Some e -> e | None -> "vim"
       in
@@ -95,7 +92,11 @@ let rec edit_and_parse ?init_contents () =
           | 'e' -> edit_and_parse ~init_contents:fcontents ()
           | _ -> ask ()
         in
-        ask ())
+        let res = ask () in
+        Out_channel.close oc;
+        Sys.remove fname;
+        res
+
 
 let add =
   with_secrets_file ~f:(fun sec ->
@@ -139,12 +140,12 @@ let io_format =
 let () =
   let open Command in
   let init_cmd =
-    basic ~summary:"Create a new secrets file."
+    basic_spec ~summary:"Create a new secrets file."
       Spec.(empty +> anon ("path" %: filename ~should_exist:false))
       (fun sec_path () -> init rc_key_path sec_path)
   in
   let import_cmd =
-    basic ~summary:"Import secrets from stdin."
+    basic_spec ~summary:"Import secrets from stdin."
       Spec.(
         empty
         +> flag "-fmt"
@@ -153,15 +154,15 @@ let () =
       (fun fmt () -> with_defaults ~f:(import ~fmt))
   in
   let export_cmd =
-    basic ~summary:"Export secrets to stdin." Spec.empty (fun () ->
+    basic_spec ~summary:"Export secrets to stdin." Spec.empty (fun () ->
         with_defaults ~f:export)
   in
   let add_cmd =
-    basic ~summary:"Add a new secret using $EDITOR." Spec.empty (fun () ->
+    basic_spec ~summary:"Add a new secret using $EDITOR." Spec.empty (fun () ->
         with_defaults ~f:add)
   in
   let rand_cmd =
-    basic ~summary:"Add a new secret with a random password."
+    basic_spec ~summary:"Add a new secret with a random password."
       Spec.(
         empty
         +> flag "-F"
@@ -182,11 +183,11 @@ let () =
         | title -> with_defaults ~f:(rand ~field ~len ~alphanum ~title))
   in
   let edit_cmd =
-    basic ~summary:"Edit all secrets using $EDITOR." Spec.empty (fun () ->
+    basic_spec ~summary:"Edit all secrets using $EDITOR." Spec.empty (fun () ->
         with_defaults ~f:edit)
   in
   let find_cmd =
-    basic ~summary:"Start fuzzy search."
+    basic_spec ~summary:"Start fuzzy search."
       Spec.(empty +> anon (maybe ("query" %: string)))
       (fun query () -> with_defaults ~f:(find ~query))
   in
