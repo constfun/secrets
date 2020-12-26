@@ -6,7 +6,7 @@ type io_format = Tsv | Sec
 
 exception Invalid_format
 
-let rc_path = Filename.realpath "~/.secrets"
+let rc_path = Filename.concat (Sys.getenv_exn "HOME") ".secrets"
 
 let rc_key_path = Filename.concat rc_path "key" 
 
@@ -37,7 +37,7 @@ let init key_path sec_path =
   Unix.mkdir_p ~perm:0o700 rc_path;
   with_secrets_file ~key_path ~sec_path ~f:Fn.id;
   if not (Sys.file_exists_exn ~follow_symlinks:false rc_sec_path) then
-    Unix.symlink ~target:(Filename.realpath sec_path) ~link_name:rc_sec_path
+    Unix.symlink ~src:(Filename.realpath sec_path) ~dst:rc_sec_path
 
 let import ~fmt =
   with_secrets_file ~f:(fun _ ->
