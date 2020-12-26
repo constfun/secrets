@@ -4,5 +4,5 @@ homepage: "https://github.com/pacemkr/ocaml-termbox"
 doc: "http://pacemkr.github.io/ocaml-termbox/"
 license: "BSD-2-Clause"
 build: [
-  ["jbuilder" "build"]
+  ["dune" "build" "-p" name "-j" jobs]
 ]
