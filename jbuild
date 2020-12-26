@@ -1,7 +1,0 @@
-(jbuild_version 1)
-
-(library
-  ((name nacl)
-   (public_name nacl)
-   (c_names (nacl_stubs))
-   (c_library_flags (-lsodium))))
