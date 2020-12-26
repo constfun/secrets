@@ -3,5 +3,3 @@
 .merlin
 *.install
 _build/
-/nacl
-*~

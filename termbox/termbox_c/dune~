@@ -1,0 +1,17 @@
+(library
+ (name termbox_c)
+ (public_name termbox.c)
+ (self_build_stubs_archive (termbox_c)))
+
+(rule
+ (targets libtermbox_c_stubs.a dlltermbox_c_stubs.so)
+ (deps (source_tree libtermbox))
+ (action
+  (bash
+    "\
+   \ncd libtermbox
+   \n./waf configure
+   \n./waf
+   \ncp build/src/libtermbox.a ../libtermbox_c_stubs.a\
+   \ncp build/src/libtermbox.so ../dlltermbox_c_stubs.so\
+   \n")))
