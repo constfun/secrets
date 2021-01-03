@@ -93,40 +93,40 @@ let rec loop state =
   render_cells ~pos:(0, 1) ~size:(5, sliderh) ~f:(slider_cells (List.length state.results) state.selection);
   Termbox.set_cursor (inputx + (String.length state.query)) inputy;
   Termbox.present ();
-  let state = match Termbox.poll_event () with
+  match Termbox.poll_event () with
     | Ascii c when Char.equal c '\x03' (* CTRL_C *) -> None
     | (Ascii _ | Key _ ) as e ->
         (match handle_input e state.query with | Some query ->
             let (results, summary, summary_hl) = search state.secrets query in
-            Some { state with query; results; summary; summary_hl; selection=0 }
+            loop { state with query; results; summary; summary_hl; selection=0 }
         | None ->
             (match slider_input e state.selection (Int.min (List.length state.results) sliderh) with
-            | Update selection -> Some { state with selection }
-            | Select selection ->
-                Utils.pbcopy (List.nth_exn state.results selection).value;
-                None
+            | Update selection -> loop { state with selection }
+            | Select selection -> List.nth state.results selection
             )
         )
-    | Utf8 _ | Resize _ -> Some state
-  in
-  match state with
-  | Some s -> loop s
-  | None -> ()
+    | Utf8 _ | Resize _ -> loop state
 
 let run_loop state =
   ignore (Termbox.init ());
-  (try loop state with
-  | _ as e ->
-      Termbox.shutdown ();
-      raise e);
-  Termbox.shutdown ()
+  let res = loop state in
+  Termbox.shutdown ();
+  res
 
-let start secrets queryopt =
+let start secrets qr queryopt =
+  let found = function
+    | Some (res : qres) ->
+       if qr then print_endline "display qr code"
+       else (
+         print_endline (res.summary ^ " copied to your clipboard.");
+         Utils.pbcopy res.value)
+    | None -> ()
+  in
   match queryopt with
   | Some query -> (
-      match search secrets query with
-      | ([r], _, _) -> (* There is only one result, copy it to the clipboard without launching the find ui. *)
-          print_endline (r.summary ^ " copied to your clipboard.");
-          Utils.pbcopy r.value
-      | (results, summary, summary_hl) -> run_loop { secrets; query; selection=0; results; summary; summary_hl } )
-  | None -> run_loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] }
+    match search secrets query with
+    (* There is only one result, use it without launching the find ui. *)
+    | ([res], _, _) -> found (Some res)
+    | (results, summary, summary_hl) ->
+       run_loop { secrets; query; selection=0; results; summary; summary_hl } |> found)
+  | None -> run_loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] } |> found

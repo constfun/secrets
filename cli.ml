@@ -124,9 +124,9 @@ let rand ?(field = "password") ?(len = 20) ~alphanum ~title =
       Utils.pbcopy rand_val;
       Secrets.add sec e)
 
-let find ~query =
+let find ~qr ~query =
   with_secrets_file ~f:(fun sec ->
-      Cli_find.start sec query;
+      Cli_find.start sec qr query;
       sec)
 
 let with_defaults ~f =
@@ -173,7 +173,7 @@ let () =
              (optional_with_default 20 int)
              ~doc:"length Length of the random value. Default: 20"
         +> flag "-s" no_arg
-             ~doc:" Create a simple, alpha-numeric value. Default: false"
+             ~doc:"Create a simple, alpha-numeric value. Default: false"
         +> anon ("title" %: string))
       (fun field len alphanum title () ->
         match title with
@@ -188,8 +188,11 @@ let () =
   in
   let find_cmd =
     basic_spec ~summary:"Start fuzzy search."
-      Spec.(empty +> anon (maybe ("query" %: string)))
-      (fun query () -> with_defaults ~f:(find ~query))
+      Spec.(empty +>
+  flag "-r" no_arg
+             ~doc:"Display a QR code instead of copying to the clipboard." +>
+              anon (maybe ("query" %: string)))
+      (fun qr query () -> with_defaults ~f:(find ~qr ~query))
   in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets."
