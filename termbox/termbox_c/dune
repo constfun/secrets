@@ -1,6 +1,5 @@
 (library
  (name termbox_c)
- (public_name termbox.c)
  (install_c_headers termbox)
  (self_build_stubs_archive (termbox_c)))
 
@@ -8,12 +7,10 @@
  (targets libtermbox_c_stubs.a dlltermbox_c_stubs.so termbox.h)
  (deps (source_tree libtermbox))
  (action
-  (bash
-    "\
-   \ncd libtermbox
-   \n./waf configure
-   \n./waf
-   \ncp build/src/libtermbox.a ../libtermbox_c_stubs.a\
-   \ncp build/src/libtermbox.so ../dlltermbox_c_stubs.so\
-   \ncp src/termbox.h ../termbox.h\
-   \n")))
+   (chdir libtermbox (progn
+     (system "./waf configure")
+     (system "./waf")
+     (system "cp build/src/libtermbox.a ../libtermbox_c_stubs.a")
+     (system "cp build/src/libtermbox.so ../dlltermbox_c_stubs.so")
+     (system "cp src/termbox.h ../termbox.h")))))
+ 

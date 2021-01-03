@@ -1,6 +1,5 @@
 (library
  (name termbox)
- (public_name termbox)
  (libraries termbox_c)
  (c_names termbox_stubs)
 )
