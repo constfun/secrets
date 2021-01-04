@@ -189,7 +189,7 @@ let () =
   let find_cmd =
     basic_spec ~summary:"Start fuzzy search."
       Spec.(empty +>
-  flag "-r" no_arg
+  flag "-qr" no_arg
              ~doc:"Display a QR code instead of copying to the clipboard." +>
               anon (maybe ("query" %: string)))
       (fun qr query () -> with_defaults ~f:(find ~qr ~query))

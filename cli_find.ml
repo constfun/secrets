@@ -82,7 +82,7 @@ let slider_input e sel h =
   | Ascii c when Char.equal c '\x0B' -> move_sel_up
   | _ -> Update sel
 
-let rec loop state =
+let rec loop state found =
   let winw = Termbox.width () in
   let winh = Termbox.height () in
   let sliderh = winh - 1 in
@@ -94,33 +94,57 @@ let rec loop state =
   Termbox.set_cursor (inputx + (String.length state.query)) inputy;
   Termbox.present ();
   match Termbox.poll_event () with
-    | Ascii c when Char.equal c '\x03' (* CTRL_C *) -> None
+    | Ascii c when Char.equal c '\x03' (* CTRL_C *) -> found None
     | (Ascii _ | Key _ ) as e ->
         (match handle_input e state.query with | Some query ->
             let (results, summary, summary_hl) = search state.secrets query in
-            loop { state with query; results; summary; summary_hl; selection=0 }
+            loop { state with query; results; summary; summary_hl; selection=0 } found 
         | None ->
             (match slider_input e state.selection (Int.min (List.length state.results) sliderh) with
-            | Update selection -> loop { state with selection }
-            | Select selection -> List.nth state.results selection
+            | Update selection -> loop { state with selection } found
+            | Select selection -> found (List.nth state.results selection)
             )
         )
-    | Utf8 _ | Resize _ -> loop state
+    | Utf8 _ | Resize _ -> loop state found
 
-let run_loop state =
+let rec full_screen_qr_code qr_matrix =
+  let open Termbox in
+  hide_cursor ();
+  set_clear_attributes Termbox.Black Termbox.White;
+  clear ();
+  let w = Qrc.Matrix.w qr_matrix in
+  let offset_x, offset_y = (Termbox.width () - w * 2) / 2, (Termbox.height () - w) / 2 in
+  let cx = ref 0 in
+  while !cx < w do (
+    let cy = ref 0 in
+    while !cy < w do
+      let ch = Int32.of_int_exn (if Qrc.Matrix.get qr_matrix ~x:!cx ~y:!cy then 9608 else 32) in
+      let set_at_x x = set_cell_utf8 ~fg:Termbox.Black ~bg:Termbox.White (offset_x + x) (offset_y + !cy) ch in
+      set_at_x (!cx * 2);
+      set_at_x (!cx * 2 + 1);
+      cy := !cy + 1
+    done;
+    cx := !cx + 1)
+  done;
+  present ();
+  match poll_event () with
+  | Resize _ -> full_screen_qr_code qr_matrix
+  | _ -> () 
+
+
+let run_loop state found =
   ignore (Termbox.init ());
-  let res = loop state in
+  let res = loop state found in
   Termbox.shutdown ();
   res
-
+  
 let start secrets qr queryopt =
   let found = function
     | Some (res : qres) ->
        if qr then
          (match Qrc.encode res.value with
-          | Some m -> (
-              Format.printf "%a\n%!" (Qrc_fmt.pp_utf_8_half ~invert:true ~quiet_zone:true) m)
-         | None -> print_endline "Too much data for QR code!")
+          | Some m -> full_screen_qr_code m          
+          | None -> print_endline "Too much data for QR code!")
        else (
          print_endline (res.summary ^ " copied to your clipboard.");
          Utils.pbcopy res.value)
@@ -130,7 +154,7 @@ let start secrets qr queryopt =
   | Some query -> (
     match search secrets query with
     (* There is only one result, use it without launching the find ui. *)
-    | ([res], _, _) -> found (Some res)
+    | ([res], _, _) -> (ignore (Termbox.init ()); found (Some res); Termbox.shutdown ())
     | (results, summary, summary_hl) ->
-       run_loop { secrets; query; selection=0; results; summary; summary_hl } |> found)
-  | None -> run_loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] } |> found
+       run_loop { secrets; query; selection=0; results; summary; summary_hl } found)
+  | None -> run_loop { secrets; query=""; selection=(-1); results=[]; summary=[||]; summary_hl=[||] } found
