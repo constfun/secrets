@@ -116,7 +116,11 @@ let run_loop state =
 let start secrets qr queryopt =
   let found = function
     | Some (res : qres) ->
-       if qr then print_endline "display qr code"
+       if qr then
+         (match Qrc.encode res.value with
+          | Some m -> (
+              Format.printf "%a\n%!" (Qrc_fmt.pp_utf_8_half ~invert:true ~quiet_zone:true) m)
+         | None -> print_endline "Too much data for QR code!")
        else (
          print_endline (res.summary ^ " copied to your clipboard.");
          Utils.pbcopy res.value)

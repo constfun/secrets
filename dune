@@ -2,7 +2,7 @@
  (modes exe)
  (name cli)
  (public_name sec)
- (libraries core re2 termbox nacl extunix)
+ (libraries core re2 termbox nacl extunix qrc)
 )
 
 (menhir
