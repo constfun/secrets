@@ -71,13 +71,14 @@ let export =
       sec)
 
 let rec edit_and_parse ?init_contents () =
-  let write_fn =
-    match init_contents with
-    | Some init_contents -> fun oc -> Out_channel.output_string oc init_contents
-    | None -> ignore
-  in
-  let fname, oc = Filename.open_temp_file "edit" ".sec" ~in_dir:rc_path in
-  write_fn oc;
+  let fname = Filename.temp_file "edit" ".sec" ~in_dir:rc_path in
+  try begin
+      (match init_contents with
+       | Some init_contents -> (
+         let oc = Out_channel.create fname in
+         Out_channel.output_string oc init_contents;
+         Out_channel.close oc)
+       | None -> ());
       let editor =
         match Sys.getenv "EDITOR" with Some e -> e | None -> "vim"
       in
@@ -88,14 +89,22 @@ let rec edit_and_parse ?init_contents () =
         let rec ask () =
           printf "Parsing error. (e)dit or (a)bort? %!";
           match Scanf.scanf "%c\n" Fn.id with
-          | 'a' -> Secrets.empty
+          | 'a' -> 
+             (match init_contents with
+              | Some c -> Secrets.of_string c
+              | None -> Secrets.empty)
           | 'e' -> edit_and_parse ~init_contents:fcontents ()
           | _ -> ask ()
         in
         let res = ask () in
-        Out_channel.close oc;
         Sys.remove fname;
         res
+    end
+  with _ ->
+        Sys.remove fname;
+        match init_contents with
+        | Some c -> Secrets.of_string c
+        | None -> Secrets.empty
 
 
 let add =
