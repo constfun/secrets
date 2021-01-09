@@ -38,15 +38,25 @@ let handle_input e text =
       Some (String.drop_suffix text 1)
   | _ -> None
 
-let results_cells r hl (x, y) _ =
+let y_for_selection selection h y =
+  let page_size = h in
+  let page_num = selection / page_size in
+  page_num * page_size + y
+
+let results_cells state (x, y) (_, h) =
+  let r = state.summary in
+  let hl = state.summary_hl in
   let blank = ('\x00', Default) in
   let ch, fg = (
+    let y = y_for_selection state.selection h y in
     if y >= (Array.length r) then blank else
       let text = r.(y) in
       let tlen = String.length text in
       let fg = if y >= (Array.length hl) then Default else (
         let hl = hl.(y) in
-        if (Set.mem hl x) then Red else Default
+        if (Set.mem hl x)
+        then Red
+        else (if y = state.selection then Blue else Default)
       ) in
       if x < tlen then (String.get text x, fg) else blank
   ) in
@@ -63,24 +73,25 @@ let search secrets query =
   );
   (results, lines, hl)
 
-let slider_cells len sel (x, y) (w, _) =
-  let ch = if y = sel && x = (w-1) && len > 0 then '>' else '\x00' in
-  { ch; fg=Default; bg=Default }
+let slider_cells state (x, y) (w, h) =
+  let y = y_for_selection state.selection h y in
+  let ch = if y = state.selection && x = (w-1) && (List.length state.results) > 0 then '>' else '\x00' in
+  { ch; fg=Blue; bg=Default }
 
 type slider_action =
   | Update of int
   | Select of int
 
-let slider_input e sel h =
-  let move_sel_down = Update (Int.min (h - 1) (sel + 1)) in
-  let move_sel_up = Update (Int.max 0 (sel - 1)) in
+let slider_input e state max_value =
+  let move_sel_down = Update (Int.min max_value (state.selection + 1)) in
+  let move_sel_up = Update (Int.max 0 (state.selection - 1)) in
   match e with
-  | Ascii c when Char.equal c '\x0D' (* ENTER *) -> Select sel
+  | Ascii c when Char.equal c '\x0D' (* ENTER *) -> Select state.selection
   | Key Arrow_down -> move_sel_down
   | Ascii c when Char.equal c '\x0A' -> move_sel_down
   | Key Arrow_up -> move_sel_up
   | Ascii c when Char.equal c '\x0B' -> move_sel_up
-  | _ -> Update sel
+  | _ -> Update state.selection
 
 let rec loop state found =
   let winw = Termbox.width () in
@@ -89,8 +100,8 @@ let rec loop state found =
   let (inputx, inputy) as input_pos = (6, 0) in
   render_cells ~pos:(0, 0) ~size:(6, 1) ~f:(string_cells "find: ");
   render_cells ~pos:input_pos ~size:((winw-6), 1) ~f:(string_cells state.query);
-  render_cells ~pos:(6, 1) ~size:((winw-6), (winh-1)) ~f:(results_cells state.summary state.summary_hl);
-  render_cells ~pos:(0, 1) ~size:(5, sliderh) ~f:(slider_cells (List.length state.results) state.selection);
+  render_cells ~pos:(6, 1) ~size:((winw-6), (winh-1)) ~f:(results_cells state);
+  render_cells ~pos:(0, 1) ~size:(5, sliderh) ~f:(slider_cells state);
   Termbox.set_cursor (inputx + (String.length state.query)) inputy;
   Termbox.present ();
   match Termbox.poll_event () with
@@ -100,7 +111,7 @@ let rec loop state found =
             let (results, summary, summary_hl) = search state.secrets query in
             loop { state with query; results; summary; summary_hl; selection=0 } found 
         | None ->
-            (match slider_input e state.selection (Int.min (List.length state.results) sliderh) with
+            (match slider_input e state ((List.length state.results) - 1) with
             | Update selection -> loop { state with selection } found
             | Select selection -> found (List.nth state.results selection)
             )
