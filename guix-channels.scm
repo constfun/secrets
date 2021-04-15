@@ -2,7 +2,7 @@
         (name 'myguix)
         (url "https://github.com/constfun/myguix.git")
         (commit
-          "61dbf87d9ba0abcae834ce9f2b80d987d5a0e4e2")
+          "a204735ac0cc5a4bfc7e68b0296f4b0c987f8957")
         (introduction
           (make-channel-introduction
             "2251d016071175543722963018fc8473c4cfe03e"
