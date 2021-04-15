@@ -71,7 +71,7 @@ let export =
       sec)
 
 let rec edit_and_parse ?init_contents () =
-  let fname = Filename.temp_file "edit" ".sec" ~in_dir:rc_path in
+  let fname = Filename.temp_file "edit" ".sec" in
   try begin
       (match init_contents with
        | Some init_contents -> (
@@ -80,11 +80,16 @@ let rec edit_and_parse ?init_contents () =
          Out_channel.close oc)
        | None -> ());
       let editor =
-        match Sys.getenv "EDITOR" with Some e -> e | None -> "vim"
+        match Sys.getenv "EDITOR" with
+        | None | Some "vim" -> "vim -n"
+        | Some e -> e
       in
       ignore (Unix.system (sprintf "%s '%s'" editor fname));
       let fcontents = In_channel.read_all fname in
-      try Secrets.of_string fcontents
+      try
+        let sec = Secrets.of_string fcontents in
+        Sys.remove fname;
+        sec
       with Secrets_parser.Error ->
         let rec ask () =
           printf "Parsing error. (e)dit or (a)bort? %!";
@@ -133,9 +138,9 @@ let rand ?(field = "password") ?(len = 20) ~alphanum ~title =
       Utils.pbcopy rand_val;
       Secrets.add sec e)
 
-let find ~qr ~query =
+let find ~qr ~invert_colors ~query =
   with_secrets_file ~f:(fun sec ->
-      Cli_find.start sec qr query;
+      Cli_find.start sec qr invert_colors query;
       sec)
 
 let with_defaults ~f =
@@ -197,11 +202,11 @@ let () =
   in
   let find_cmd =
     basic_spec ~summary:"Start fuzzy search."
-      Spec.(empty +>
-  flag "-qr" no_arg
-             ~doc:"Display a QR code instead of copying to the clipboard." +>
-              anon (maybe ("query" %: string)))
-      (fun qr query () -> with_defaults ~f:(find ~qr ~query))
+      Spec.(empty
+            +> flag "-qr" no_arg ~doc:"Display a QR code instead of copying to the clipboard."
+            +> flag "-invert-colors" no_arg ~doc:"Invert the colors to make the QR code readable."
+            +> anon (maybe ("query" %: string)))
+      (fun qr invert_colors query () -> with_defaults ~f:(find ~qr ~invert_colors ~query))
   in
   run ~version:"0.1.0"
     (group ~summary:"Manage encrypted secrets."

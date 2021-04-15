@@ -118,10 +118,14 @@ let rec loop state found =
         )
     | Utf8 _ | Resize _ -> loop state found
 
-let rec full_screen_qr_code qr_matrix =
+let rec full_screen_qr_code qr_matrix invert_colors =
   let open Termbox in
+  let fg, bg = match invert_colors with
+    | false -> Termbox.(White, Black)
+    | true -> Termbox.(Black, White)
+  in
   hide_cursor ();
-  set_clear_attributes Termbox.Black Termbox.White;
+  set_clear_attributes fg bg;
   clear ();
   let w = Qrc.Matrix.w qr_matrix in
   let offset_x, offset_y = (Termbox.width () - w * 2) / 2, (Termbox.height () - w) / 2 in
@@ -130,7 +134,7 @@ let rec full_screen_qr_code qr_matrix =
     let cy = ref 0 in
     while !cy < w do
       let ch = Int32.of_int_exn (if Qrc.Matrix.get qr_matrix ~x:!cx ~y:!cy then 9608 else 32) in
-      let set_at_x x = set_cell_utf8 ~fg:Termbox.Black ~bg:Termbox.White (offset_x + x) (offset_y + !cy) ch in
+      let set_at_x x = set_cell_utf8 ~fg ~bg (offset_x + x) (offset_y + !cy) ch in
       set_at_x (!cx * 2);
       set_at_x (!cx * 2 + 1);
       cy := !cy + 1
@@ -139,7 +143,7 @@ let rec full_screen_qr_code qr_matrix =
   done;
   present ();
   match poll_event () with
-  | Resize _ -> full_screen_qr_code qr_matrix
+  | Resize _ -> full_screen_qr_code qr_matrix invert_colors
   | _ -> () 
 
 
@@ -149,12 +153,12 @@ let run_loop state found =
   Termbox.shutdown ();
   res
   
-let start secrets qr queryopt =
+let start secrets qr invert_colors queryopt =
   let found = function
     | Some (res : qres) ->
        if qr then
          (match Qrc.encode res.value with
-          | Some m -> full_screen_qr_code m          
+          | Some m -> full_screen_qr_code m invert_colors
           | None -> print_endline "Too much data for QR code!")
        else (
          print_endline (res.summary ^ " copied to your clipboard.");

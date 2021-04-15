@@ -1,0 +1,12 @@
+(specifications->manifest
+ '("python2"
+   "ocaml@4.07"
+   "ocaml4.07-dune"
+   "ocaml4.07-menhir"
+   "ocaml4.07-core"
+   "ocaml4.07-core-kernel"
+   "ocaml4.07-ppxlib"
+   "ocaml4.07-extunix"
+   "ocaml4.07-re2"
+   "ocaml4.07-qrc"
+   "libsodium"))

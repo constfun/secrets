@@ -1,1 +1,7 @@
-guix build -K -L ~/projects/myguix --with-source=secrets@1.0.0=$(pwd) secrets
+mkdir -p .guix-profile
+GUIX_PROFILE=.guix-profile/the-profile
+guix time-machine --channels=guix-channels.scm -- package --manifest=guix-manifest.scm --profile=$GUIX_PROFILE
+. $GUIX_PROFILE/etc/profile
+
+dune build
+_build/default/cli.exe $@
