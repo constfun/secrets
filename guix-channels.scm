@@ -1,8 +1,18 @@
 (list (channel
+        (name 'nonguix)
+        (url "https://gitlab.com/nonguix/nonguix")
+        (commit
+          "5e9aca6fb898f5abcd22fe0af4e9ac3fe9c8481f")
+        (introduction
+          (make-channel-introduction
+            "897c1a470da759236cc11798f4e0a5f7d4d59fbc"
+            (openpgp-fingerprint
+              "2A39 3FFF 68F4 EF7A 3D29  12AF 6F51 20A0 22FB B2D5"))))
+      (channel
         (name 'myguix)
         (url "https://github.com/constfun/myguix.git")
         (commit
-          "a204735ac0cc5a4bfc7e68b0296f4b0c987f8957")
+          "1a35e7dcdaa8590faf69e1d7ef49fccbaaee499a")
         (introduction
           (make-channel-introduction
             "2251d016071175543722963018fc8473c4cfe03e"
@@ -12,7 +22,7 @@
         (name 'guix)
         (url "https://git.savannah.gnu.org/git/guix.git")
         (commit
-          "e18e2e458fe584ee9eaeca40adbdcef895d32abf")
+          "a5bbd38fd131282e928144e869dcdf1e09259085")
         (introduction
           (make-channel-introduction
             "9edb3f66fd807b096b48283debdcddccfea34bad"

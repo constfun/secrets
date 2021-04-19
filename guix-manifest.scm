@@ -1,5 +1,8 @@
 (specifications->manifest
- '("python2"
+ '("bash"
+   "coreutils"
+   "gcc-toolchain"
+   "python2"
    "ocaml@4.07"
    "ocaml4.07-dune"
    "ocaml4.07-menhir"
