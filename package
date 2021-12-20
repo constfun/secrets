@@ -1,2 +1,0 @@
-guix time-machine --channels=guix-channels.scm -- \
-     pack --relocatable --relocatable --symlink=/sec=bin/sec --with-source=secrets@1.0.0=$(pwd) $@ secrets

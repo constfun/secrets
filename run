@@ -7,6 +7,10 @@ clean () {
     #rm -f secrets.opam
     rm -rf _build
     rm -rf $BASE
+    rm -f secrets.install
+    rm -f .merlin
+    rm -f **/.merlin
+    rm -f **/**/.merlin
 
     # Activate default guix profile to leave us with a working shell
     GUIX_PROFILE=~/.guix-profile
@@ -48,8 +52,16 @@ EOF
 }
 
 package () {
-    GUIX_PACKAGE_PATH=$(pwd) $GUIX pack --relocatable --relocatable --symlink=/sec=bin/sec \
+    clean
+    GUIX_PACKAGE_PATH=$(pwd)/package $GUIX pack --relocatable --relocatable --symlink=/sec=bin/sec \
           --with-source=secrets@1.0.0=$(pwd) $@ secrets
+}
+
+install () {
+    read -p "Current profile is $GUIX_PROFILE Continue? (y/n) " yn
+    if [[ $yn == "y" ]]; then  
+        GUIX_PACKAGE_PATH=$(pwd)/package guix install secrets --with-source=secrets@1.0.0=$(pwd)
+    fi
 }
 
 update () {
@@ -98,7 +110,11 @@ activate_guix_profile () {
 
 flashcard () {
     cat <<FLASHCARD
-Nothing to remember.
+## todo
+Remove secrets.opam and generate it instead with:
+(generate_opam_files true)
+(package (name secrets))
+in dune-project once dune is updated.
 FLASHCARD
 }
 
@@ -107,6 +123,7 @@ case $1 in
     clean) clean;;
     update) update;;
     package) package;;
+    install) install;;
     ok) ok ;;
     flashcard) flashcard ;;
     ? | h | help | explain | flashcard )
