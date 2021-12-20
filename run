@@ -1,0 +1,133 @@
+BASE=$(pwd)/_guix
+mkdir -p $BASE
+
+GUIX=${GUIX:=guix time-machine --channels=channels.scm --}
+
+clean () {
+    #rm -f secrets.opam
+    rm -rf _build
+    rm -rf $BASE
+
+    # Activate default guix profile to leave us with a working shell
+    GUIX_PROFILE=~/.guix-profile
+    source $GUIX_PROFILE/etc/profile
+}
+
+build () {
+    MANIFEST=$(mktemp)
+    cat << EOF > $MANIFEST
+(specifications->manifest
+ '("bash"
+   "coreutils"
+   "gcc-toolchain"
+   "python2"
+   "ocaml@4.07"
+   "ocaml4.07-dune"
+   "ocaml4.07-menhir"
+   "ocaml4.07-core"
+   "ocaml4.07-core-kernel"
+   "ocaml4.07-ppxlib"
+   "ocaml4.07-extunix"
+   "ocaml4.07-re2"
+   "ocaml4.07-qrc"
+   "libsodium"))
+EOF
+    activate_guix_profile build $MANIFEST
+    dune build
+}
+
+editor () {
+    MANIFEST=$(mktemp)
+    cat << EOF > $MANIFEST
+(specifications->manifest
+ '())
+EOF
+    activate_guix_profile edit $MANIFEST
+    rm .emacs.desktop.lock
+    emacs &
+}
+
+package () {
+    GUIX_PACKAGE_PATH=$(pwd) $GUIX pack --relocatable --relocatable --symlink=/sec=bin/sec \
+          --with-source=secrets@1.0.0=$(pwd) $@ secrets
+}
+
+update () {
+    LATEST=$(git ls-remote https://gitlab.com/constfun/guix.git | grep refs/heads/master | cut -f 1)
+    cat <<EOF > channels.scm
+(list (channel
+        (name 'guix)
+        (url "https://gitlab.com/constfun/guix.git")
+        (commit
+          "$LATEST")
+        (introduction
+          (make-channel-introduction
+            "$LATEST"
+            (openpgp-fingerprint
+              "C789 7641 FA2B 963A ED0C  2ACE 51DE 6885 B4B5 4236")))))
+EOF
+    git diff channels.scm
+}
+
+ok () {
+    dune clean
+    dune build
+    #dune build @fmt
+    #dune promote
+    git add -A ..
+    git commit
+    git push
+}
+
+activate_guix_profile () {
+    PROFILE=$1
+    MANIFEST=$2
+    
+    GUIX_PROFILE=$BASE/$PROFILE
+    PROVENANCE=$(cat channels.scm "$MANIFEST")
+    
+    if ! cmp -s <(echo "$PROVENANCE") $BASE/$PROFILE.provenance; then
+        if $GUIX package --manifest="$MANIFEST" --profile=$GUIX_PROFILE; then
+            echo "$PROVENANCE" > $BASE/$PROFILE.provenance
+        fi
+    fi
+
+    source $GUIX_PROFILE/etc/profile
+    echo "Activated Profile: $GUIX_PROFILE/etc/profile"
+}
+
+flashcard () {
+    cat <<FLASHCARD
+Nothing to remember.
+FLASHCARD
+}
+
+case $1 in
+    build) build;;
+    clean) clean;;
+    update) update;;
+    package) package;;
+    ok) ok ;;
+    flashcard) flashcard ;;
+    ? | h | help | explain | flashcard )
+        echo "Usage: run [build|clean|update|package|ok]"
+        echo
+        echo "With no arguments, build and run cli.exe"
+        echo
+        echo "editor - activate dev environment and run emacs"
+        echo "build - activate build environment and run dune build"
+        echo "clean - clean and activate default guix profile"
+        echo "update - update channels.scm file with latest from gitlab/constfun/guix/master"
+        echo "package - package a tar file with a relocatable binary and all of its dependencies"
+        echo "ok - build, commit, and push"
+        echo "flashcard - show things to remember"
+        echo "? | h | help | explain - show this message"
+        ;;
+    *)
+        if build; then
+            _build/default/cli.exe $@
+        fi
+        ;;
+esac
+
+

@@ -7,4 +7,5 @@ _build/
 \#*
 .#*
 
-.guix-profile/
+_guix
+*.swp
